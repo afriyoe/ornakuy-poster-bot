@@ -1,7 +1,8 @@
 """
-Ornakuy Poster Bot - mode KUMPUL
-Menarik pesanan dari channel Discord (kode 6 karakter + foto depan + foto belakang)
-lalu menyimpannya ke repo supaya tampil di dashboard. Generate dilakukan manual di ChatGPT.
+Ornakuy Poster Bot - mode KUMPUL (v3)
+Menarik SEMUA pesanan dari channel Discord (kode 6 karakter + foto depan + foto belakang)
+dan menyimpannya ke repo. Tidak ada yang dibuang: kode yang pernah muncul tetap disimpan
+dan ditandai "ulang", lalu dashboard yang memetakan mana yang baru / sudah pernah di-generate.
 
 Secrets (GitHub > Settings > Secrets and variables > Actions):
   DISCORD_BOT_TOKEN   token bot Discord
@@ -17,11 +18,12 @@ ROOT = Path(__file__).resolve().parent
 STATE = ROOT / "state.json"
 ORDERS = ROOT / "orders.json"
 ODIR = ROOT / "orders"
+STATE_KEY = "collect_v3_last_id"
 
 API = "https://discord.com/api/v10"
 TOKEN = os.environ["DISCORD_BOT_TOKEN"]
 CHANNEL = os.environ["DISCORD_CHANNEL_ID"]
-HDR = {"Authorization": f"Bot {TOKEN}", "User-Agent": "OrnakuyPosterBot (github-actions, 2.0)"}
+HDR = {"Authorization": f"Bot {TOKEN}", "User-Agent": "OrnakuyPosterBot (github-actions, 3.0)"}
 CODE_RE = re.compile(r"\b([A-Z0-9]{6})\b")
 IMG_EXT = (".png", ".jpg", ".jpeg", ".webp")
 
@@ -81,20 +83,16 @@ def save_img(url, path):
 def main():
     state = load_json(STATE, {})
     orders = load_json(ORDERS, [])
-    msgs = fetch_new_messages(state.get("collect_last_id"))
-    found = [o for o in (parse_order(m) for m in msgs) if o]
-    print(f"{len(msgs)} pesan baru, {len(found)} pesanan")
+    known_ids = {x["message_id"] for x in orders}
+    msgs = fetch_new_messages(state.get(STATE_KEY))
+    print(f"{len(msgs)} pesan dibaca")
 
-    # kode yang sudah pernah masuk / pernah di-generate (termasuk hasil sistem lama di data.json)
-    seen = {x["code"] for x in orders} | {x.get("code") for x in load_json(ROOT / "data.json", [])}
-
-    last_ok = state.get("collect_last_id")
+    last_ok = state.get(STATE_KEY)
+    added = 0
     for m in msgs:
         o = parse_order(m)
-        if o and o["code"] in seen:
-            print("Lewati", o["code"], "- kode sudah pernah masuk")
-        elif o:
-            folder = ODIR / o["code"]
+        if o and o["message_id"] not in known_ids:
+            folder = ODIR / o["message_id"]
             folder.mkdir(parents=True, exist_ok=True)
             try:
                 save_img(o["front_url"], folder / "front.png")
@@ -102,18 +100,23 @@ def main():
             except Exception as e:
                 print("Gagal unduh foto", o["code"], ":", e)
                 break  # coba lagi di jalan berikutnya
-            orders.insert(0, {"code": o["code"], "author": o["author"], "time": o["time"],
-                              "message_id": o["message_id"],
-                              "front": f"orders/{o['code']}/front.png",
-                              "back": f"orders/{o['code']}/back.png"})
-            seen.add(o["code"])
-            print("Pesanan", o["code"], "tersimpan")
+            repeat = any(x["code"] == o["code"] for x in orders)
+            orders.append({"code": o["code"], "author": o["author"], "time": o["time"],
+                           "message_id": o["message_id"], "repeat": repeat,
+                           "front": f"orders/{o['message_id']}/front.png",
+                           "back": f"orders/{o['message_id']}/back.png"})
+            known_ids.add(o["message_id"])
+            added += 1
+            print("Pesanan", o["code"], "(kode ulang)" if repeat else "(baru)", "tersimpan")
         last_ok = m["id"]
 
     orders.sort(key=lambda x: x["time"], reverse=True)
-    state["collect_last_id"] = last_ok
+    state[STATE_KEY] = last_ok
+    state["last_run"] = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+    state["last_added"] = added
     STATE.write_text(json.dumps(state, indent=2))
     ORDERS.write_text(json.dumps(orders, indent=2, ensure_ascii=False))
+    print(f"Selesai: {added} pesanan baru ditambahkan")
 
 
 if __name__ == "__main__":
