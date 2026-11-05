@@ -103,13 +103,26 @@
 <div class="toast" id="toast"></div>
 
 <script>
-const DEFAULT_PROMPT = `The attached image shows ONE Roblox avatar outfit: LEFT half = FRONT view, RIGHT half = BACK view.
+const DEFAULT_PROMPT = `The attached image is a sheet with 3 labeled panels:
+- Panel A (STYLE REFERENCE) = the finished poster style I want. Copy its look and layout.
+- Panel B (FRONT) and Panel C (BACK) = photos of the Roblox avatar outfit I am selling (the product).
 
-Create a vertical 2:3 promotional poster:
-- Background: light grey studio with big glossy liquid silver chrome swirls on both sides, glossy reflective mirror floor, bright soft studio lighting, ultra-detailed high-end 3D render with crisp fabric textures.
-- Show the avatar twice side by side: FRONT view on the left, BACK view on the right. The figures are LARGE and fill the poster from just below the title down to near the bottom edge, slightly low camera angle so the shoes look big in the foreground.
-- At the top center: a small four-point star, the word "CODE" with a thin line on each side, below it the code "{CODE}" in very large heavy black sans-serif, then a small four-point star with a thin line on each side. Spell the code exactly: {SPELLED}. No other text.
-- STRICT: keep the outfit EXACTLY as in the photo — same colors and shades, prints, graphics, patterns, rips and cut-outs, hood, belt, accessories, shoes, hair and skin tone. Do not recolor, simplify or redesign anything.`;
+Create ONE vertical 2:3 poster of the avatar in Panel B/C, made EXACTLY in the style of Panel A.
+
+LOCKED FROM PANEL A (do not change):
+- Background: same light grey studio, same liquid silver chrome swirls, same glossy reflective dark floor, same colors and lighting. Do not recolor or redesign the background.
+- Title: same font, same size, same position and same layout at the top center - a four-point star, the word "CODE", the code, then a four-point star - in the same black color. Replace only the code with "{CODE}". Spell it exactly: {SPELLED}. No other text anywhere.
+- Placement: same composition as Panel A - FRONT view on the left, BACK view on the right, large full-body figures, same scale, same camera angle, standing on the reflective floor.
+
+LOCKED FROM PANEL B/C (do not change):
+- The outfit and the avatar must match the photos exactly: same colors and shades of every clothing piece, skin tone, hair color, prints, graphics, patterns, rips, accessories, shoes and shapes. Do not recolor, simplify, redesign or add anything.
+- Never take the outfit, hair, skin or character from Panel A - Panel A is only for style and layout.
+
+SPECIAL RULES:
+- If the face is covered by the clothing (hood, mask, helmet, etc.), that is the design of the outfit. Keep it covered. Do NOT generate or reveal a face.
+- If the avatar wears a hood, hoodie, hat or beanie and the hair visibly clips through it in the photo, fix only that: keep the hair inside / under the hood so nothing pokes through.
+- If the hair does NOT clip through, do not regenerate, restyle or "improve" the hair or the hood at all - keep their shapes exactly as in the photo.
+- Do not add the panel labels or white borders to the poster.`;
 
 const store = {
   get(k, d) { try { const v = localStorage.getItem('ornakuy_' + k); return v === null ? d : v; } catch (e) { return d; } },
@@ -182,12 +195,16 @@ function loadImg(src) {
   return new Promise((res, rej) => { const i = new Image(); i.onload = () => res(i); i.onerror = rej; i.src = src; });
 }
 async function combinedBlob(o) {
-  const [a, b] = await Promise.all([loadImg(o.front), loadImg(o.back)]);
-  const H = Math.max(a.naturalHeight, b.naturalHeight), gap = 24;
-  const wa = a.naturalWidth * H / a.naturalHeight, wb = b.naturalWidth * H / b.naturalHeight;
-  const c = document.createElement('canvas'); c.width = Math.round(wa + wb + gap); c.height = H;
+  const imgs = await Promise.all([loadImg('reference.jpg'), loadImg(o.front), loadImg(o.back)]);
+  const labels = ['A  STYLE REFERENCE', 'B  FRONT', 'C  BACK'];
+  const H = 1200, gap = 24, top = 70;
+  const ws = imgs.map(i => Math.round(i.naturalWidth * H / i.naturalHeight));
+  const c = document.createElement('canvas');
+  c.width = ws.reduce((p, q) => p + q, 0) + gap * 4; c.height = H + top + gap;
   const x = c.getContext('2d'); x.fillStyle = '#fff'; x.fillRect(0, 0, c.width, c.height);
-  x.drawImage(a, 0, 0, wa, H); x.drawImage(b, wa + gap, 0, wb, H);
+  x.fillStyle = '#111'; x.font = 'bold 40px Arial, sans-serif'; x.textBaseline = 'middle';
+  let px = gap;
+  imgs.forEach((im, i) => { x.fillText(labels[i], px, top / 2 + 6); x.drawImage(im, px, top, ws[i], H); px += ws[i] + gap; });
   return new Promise(r => c.toBlob(r, 'image/png'));
 }
 function download(blob, name) {
@@ -201,7 +218,7 @@ async function act(kind, o, cardEl) {
     try {
       const blob = await combinedBlob(o);
       await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]);
-      toast('Foto depan+belakang tersalin. Tempel (Ctrl+V) di ChatGPT');
+      toast('Referensi + foto depan + belakang tersalin. Tempel (Ctrl+V) di ChatGPT');
     } catch (e) {
       try { download(await combinedBlob(o), o.code + '_depan-belakang.png'); toast('Foto diunduh — seret ke ChatGPT'); }
       catch (e2) { toast('Gagal menyiapkan foto'); }
