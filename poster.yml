@@ -1,0 +1,54 @@
+name: Generate poster dari Discord
+
+on:
+  schedule:
+    - cron: "*/30 * * * *"   # cek Discord tiap 30 menit
+  workflow_dispatch:          # tombol "Run workflow" untuk tes manual
+    inputs:
+      only_code:
+        description: "Tes satu kode saja (opsional, mis. F3E7D7)"
+        required: false
+        default: ""
+
+permissions:
+  contents: write
+
+concurrency:
+  group: poster-bot
+  cancel-in-progress: false
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install
+        run: pip install openai requests pillow
+
+      - name: Generate
+        env:
+          DISCORD_BOT_TOKEN: ${{ secrets.DISCORD_BOT_TOKEN }}
+          DISCORD_CHANNEL_ID: ${{ secrets.DISCORD_CHANNEL_ID }}
+          DISCORD_RESULT_CHANNEL_ID: ${{ secrets.DISCORD_RESULT_CHANNEL_ID }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          IMAGE_MODEL: ${{ vars.IMAGE_MODEL }}
+          IMAGE_QUALITY: ${{ vars.IMAGE_QUALITY }}
+          TEXT_MODE: ${{ vars.TEXT_MODE }}
+          MAX_PER_RUN: ${{ vars.MAX_PER_RUN }}
+          POST_BACK: ${{ vars.POST_BACK }}
+          ONLY_CODE: ${{ github.event.inputs.only_code }}
+        run: python scripts/run.py
+
+      - name: Simpan hasil ke repo
+        run: |
+          git config user.name "ornakuy-poster-bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add -A docs state.json
+          git diff --cached --quiet || git commit -m "Poster baru dari Discord"
+          git push

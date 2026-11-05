@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ornakuy · Poster Dashboard</title>
+<style>
+  :root { --bg:#0e0e10; --card:#18181b; --line:#2a2a2f; --text:#ececf1; --muted:#9a9aa3; --accent:#d9d9de; }
+  * { box-sizing:border-box; }
+  body { margin:0; font-family:Inter,system-ui,sans-serif; background:var(--bg); color:var(--text); }
+  header { padding:28px 32px 12px; display:flex; flex-wrap:wrap; gap:16px; align-items:end; justify-content:space-between; }
+  h1 { margin:0; font-size:22px; letter-spacing:.04em; }
+  h1 span { color:var(--muted); font-weight:500; }
+  .stats { color:var(--muted); font-size:14px; margin-top:4px; }
+  input { background:var(--card); border:1px solid var(--line); color:var(--text); padding:10px 14px; border-radius:10px; width:240px; font-size:14px; }
+  main { padding:16px 32px 48px; display:grid; grid-template-columns:repeat(auto-fill,minmax(220px,1fr)); gap:18px; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:14px; overflow:hidden; }
+  .card img { width:100%; aspect-ratio:2/3; object-fit:cover; display:block; cursor:zoom-in; background:#222; }
+  .meta { padding:12px 14px; display:flex; justify-content:space-between; align-items:center; gap:8px; }
+  .code { font-weight:800; letter-spacing:.06em; }
+  .sub { color:var(--muted); font-size:12px; }
+  a.dl { color:var(--accent); font-size:13px; text-decoration:none; border:1px solid var(--line); padding:6px 10px; border-radius:8px; }
+  .empty { color:var(--muted); padding:40px 32px; }
+  dialog { border:none; padding:0; background:transparent; max-width:92vw; }
+  dialog img { max-height:92vh; max-width:92vw; border-radius:12px; display:block; }
+  dialog::backdrop { background:rgba(0,0,0,.8); }
+</style>
+</head>
+<body>
+<header>
+  <div>
+    <h1>ORNAKUY <span>· Poster Dashboard</span></h1>
+    <div class="stats" id="stats">Memuat…</div>
+  </div>
+  <input id="q" placeholder="Cari kode, mis. F3E7D7" autocomplete="off">
+</header>
+<main id="grid"></main>
+<dialog id="dlg"><img id="big" alt=""></dialog>
+<script>
+let items = [];
+const grid = document.getElementById('grid');
+function fmt(t){ try { return new Date(t).toLocaleString('id-ID',{dateStyle:'medium',timeStyle:'short'}); } catch(e){ return ''; } }
+function render(){
+  const q = document.getElementById('q').value.trim().toUpperCase();
+  const list = items.filter(x => !q || x.code.includes(q));
+  document.getElementById('stats').textContent = `${items.length} poster · ${list.length} ditampilkan`;
+  if (!list.length) { grid.innerHTML = '<div class="empty">Belum ada poster.</div>'; return; }
+  grid.innerHTML = list.map(x => `
+    <div class="card">
+      <img src="${x.file}" loading="lazy" alt="CODE ${x.code}" data-src="${x.file}">
+      <div class="meta">
+        <div><div class="code">${x.code}</div><div class="sub">${x.author || ''} · ${fmt(x.time)}</div></div>
+        <a class="dl" href="${x.file}" download="${x.code}.png">Unduh</a>
+      </div>
+    </div>`).join('');
+}
+grid.addEventListener('click', e => {
+  if (e.target.tagName === 'IMG') { document.getElementById('big').src = e.target.dataset.src; document.getElementById('dlg').showModal(); }
+});
+document.getElementById('dlg').addEventListener('click', e => e.currentTarget.close());
+document.getElementById('q').addEventListener('input', render);
+fetch('data.json?' + Date.now()).then(r => r.json()).then(d => { items = d; render(); })
+  .catch(() => { grid.innerHTML = '<div class="empty">Belum ada data.</div>'; document.getElementById('stats').textContent=''; });
+</script>
+</body>
+</html>
