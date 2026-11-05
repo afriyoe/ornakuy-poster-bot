@@ -5,95 +5,123 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Ornakuy · Dashboard Poster</title>
 <style>
-  :root { --bg:#0d0d10; --card:#17171b; --card2:#1e1e24; --line:#2b2b33; --text:#ededf2; --muted:#9696a2; --chrome:#d9dae0; --ok:#3ecf8e; --warn:#f5b04c; --accent:#ff5fa2; }
+  :root { --bg:#0d0d10; --card:#17171b; --card2:#1e1e24; --line:#2b2b33; --text:#ededf2; --muted:#9696a2; --chrome:#d9dae0; --ok:#3ecf8e; --warn:#f5b04c; --info:#7aa7ff; }
   * { box-sizing:border-box; }
   body { margin:0; font-family:Inter,system-ui,-apple-system,Segoe UI,sans-serif; background:var(--bg); color:var(--text); }
   button, input, textarea { font:inherit; color:inherit; }
-  header { position:sticky; top:0; z-index:5; background:rgba(13,13,16,.92); backdrop-filter:blur(8px); border-bottom:1px solid var(--line); padding:16px 28px; display:flex; flex-wrap:wrap; gap:14px; align-items:center; justify-content:space-between; }
+  header { position:sticky; top:0; z-index:5; background:rgba(13,13,16,.94); backdrop-filter:blur(8px); border-bottom:1px solid var(--line); padding:14px 28px; }
+  .row1 { display:flex; flex-wrap:wrap; gap:12px; align-items:center; justify-content:space-between; }
   .brand { display:flex; align-items:baseline; gap:10px; }
   .brand b { font-size:20px; letter-spacing:.12em; }
   .brand span { color:var(--muted); font-size:14px; }
-  .stats { display:flex; gap:8px; flex-wrap:wrap; }
-  .pill { background:var(--card); border:1px solid var(--line); border-radius:999px; padding:6px 12px; font-size:13px; color:var(--muted); }
-  .pill b { color:var(--text); }
-  .controls { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
-  .tabs { display:flex; background:var(--card); border:1px solid var(--line); border-radius:10px; padding:3px; }
-  .tabs button { background:none; border:0; padding:7px 12px; border-radius:7px; cursor:pointer; color:var(--muted); font-size:13px; }
+  .actions { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+  .pull { background:var(--chrome); color:#111; border:0; border-radius:10px; padding:10px 16px; font-weight:700; cursor:pointer; font-size:14px; }
+  .pull:disabled { opacity:.6; cursor:wait; }
+  .runstat { font-size:12px; color:var(--muted); }
+  .runstat b { color:var(--text); font-weight:600; }
+  .iconbtn { background:var(--card); border:1px solid var(--line); border-radius:10px; padding:9px 12px; cursor:pointer; font-size:13px; }
+  .row2 { display:flex; flex-wrap:wrap; gap:10px; align-items:center; justify-content:space-between; margin-top:12px; }
+  .tabs { display:flex; background:var(--card); border:1px solid var(--line); border-radius:12px; padding:4px; gap:2px; }
+  .tabs button { background:none; border:0; padding:8px 14px; border-radius:8px; cursor:pointer; color:var(--muted); font-size:13.5px; display:flex; gap:7px; align-items:center; }
   .tabs button.on { background:var(--card2); color:var(--text); }
-  input[type=search] { background:var(--card); border:1px solid var(--line); padding:9px 12px; border-radius:10px; width:190px; font-size:13px; }
-  .iconbtn { background:var(--card); border:1px solid var(--line); border-radius:10px; padding:8px 12px; cursor:pointer; font-size:13px; }
+  .tabs .n { background:#2a2a32; border-radius:999px; padding:1px 8px; font-size:12px; color:var(--text); }
+  .tabs button[data-f=new] .n { background:#3a2c12; color:var(--warn); }
+  input[type=search] { background:var(--card); border:1px solid var(--line); padding:9px 12px; border-radius:10px; width:200px; font-size:13px; }
   .banner { margin:16px 28px 0; padding:12px 16px; border:1px solid #5a4520; background:#2a2111; color:#f3d39b; border-radius:12px; font-size:14px; display:none; }
-  main { padding:20px 28px 60px; display:grid; grid-template-columns:repeat(auto-fill,minmax(330px,1fr)); gap:18px; }
-  .card { background:var(--card); border:1px solid var(--line); border-radius:16px; overflow:hidden; display:flex; flex-direction:column; outline:none; }
+  .hint { margin:14px 28px 0; color:var(--muted); font-size:13px; }
+  main { padding:16px 28px 60px; }
+  .grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(330px,1fr)); gap:18px; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:16px; overflow:hidden; display:flex; flex-direction:column; }
   .card.active { border-color:#6b6b78; box-shadow:0 0 0 1px #6b6b78; }
   .card.done { border-color:#245c43; }
-  .top { display:flex; justify-content:space-between; align-items:center; padding:14px 16px 10px; }
+  .top { display:flex; justify-content:space-between; align-items:flex-start; padding:14px 16px 10px; gap:8px; }
   .code { font-weight:900; font-size:22px; letter-spacing:.08em; }
   .meta { color:var(--muted); font-size:12px; margin-top:2px; }
-  .badge { font-size:12px; padding:4px 10px; border-radius:999px; border:1px solid var(--line); color:var(--warn); white-space:nowrap; }
+  .badges { display:flex; flex-direction:column; align-items:flex-end; gap:4px; }
+  .badge { font-size:11.5px; padding:3px 9px; border-radius:999px; border:1px solid var(--line); color:var(--warn); white-space:nowrap; }
   .badge.ok { color:var(--ok); border-color:#245c43; }
+  .badge.rep { color:var(--info); border-color:#2c3e66; }
   .photos { display:grid; grid-template-columns:1fr 1fr; gap:6px; padding:0 16px; }
+  .photos.three { grid-template-columns:1fr 1fr 1fr; }
   .ph { position:relative; background:#26262d; border-radius:10px; overflow:hidden; aspect-ratio:3/4; }
-  .ph img { width:100%; height:100%; object-fit:cover; display:block; }
-  .ph span { position:absolute; left:6px; top:6px; font-size:11px; background:rgba(0,0,0,.6); padding:2px 7px; border-radius:6px; }
+  .ph img { width:100%; height:100%; object-fit:cover; display:block; cursor:zoom-in; }
+  .ph span { position:absolute; left:6px; top:6px; font-size:11px; background:rgba(0,0,0,.65); padding:2px 7px; border-radius:6px; }
+  .ph.res span { background:#11412c; }
   .steps { padding:12px 16px 0; display:grid; grid-template-columns:1fr 1fr 1fr; gap:6px; }
-  .btn { background:var(--card2); border:1px solid var(--line); border-radius:10px; padding:9px 6px; cursor:pointer; font-size:12.5px; text-align:center; }
+  .btn { background:var(--card2); border:1px solid var(--line); border-radius:10px; padding:9px 6px; cursor:pointer; font-size:12.5px; text-align:center; text-decoration:none; color:var(--text); }
   .btn:hover { border-color:#55555f; }
   .btn.primary { background:var(--chrome); color:#111; border-color:var(--chrome); font-weight:600; }
   .btn small { display:block; color:var(--muted); font-size:10.5px; margin-bottom:2px; }
   .btn.primary small { color:#444; }
-  .drop { margin:10px 16px 16px; border:1.5px dashed #3a3a44; border-radius:12px; padding:14px; text-align:center; font-size:13px; color:var(--muted); cursor:pointer; transition:.15s; }
+  .btn.drive { background:#11241b; border-color:#245c43; color:var(--ok); }
+  .drop { margin:10px 16px 16px; border:1.5px dashed #3a3a44; border-radius:12px; padding:13px; text-align:center; font-size:13px; color:var(--muted); cursor:pointer; transition:.15s; }
   .drop:hover, .drop.over { border-color:var(--chrome); color:var(--text); background:#1c1c22; }
   .drop.busy { color:var(--warn); }
-  .drop a { color:var(--ok); }
-  .result { display:flex; gap:10px; align-items:center; margin:10px 16px 16px; padding:10px; background:#11241b; border:1px solid #245c43; border-radius:12px; font-size:13px; }
-  .result a { color:var(--ok); }
-  .result button { margin-left:auto; background:none; border:1px solid #245c43; color:var(--muted); border-radius:8px; padding:5px 8px; cursor:pointer; font-size:12px; }
-  .empty { color:var(--muted); padding:40px 0; grid-column:1/-1; text-align:center; }
-  dialog { background:var(--card); color:var(--text); border:1px solid var(--line); border-radius:16px; width:min(640px,94vw); padding:22px; }
+  .result { display:flex; gap:8px; align-items:center; margin:10px 16px 16px; flex-wrap:wrap; }
+  .result .btn { flex:1; }
+  .day { margin:26px 0 12px; display:flex; align-items:center; gap:12px; }
+  .day:first-child { margin-top:4px; }
+  .day h3 { margin:0; font-size:16px; }
+  .day .cnt { color:var(--muted); font-size:13px; }
+  .day .btn { margin-left:auto; padding:7px 12px; }
+  .gal { display:grid; grid-template-columns:repeat(auto-fill,minmax(200px,1fr)); gap:14px; }
+  .gcard { background:var(--card); border:1px solid var(--line); border-radius:14px; overflow:hidden; }
+  .gcard .img { aspect-ratio:2/3; background:#222; display:flex; align-items:center; justify-content:center; color:var(--muted); font-size:12px; }
+  .gcard img { width:100%; height:100%; object-fit:cover; display:block; cursor:zoom-in; }
+  .gcard .foot { padding:10px 12px; display:flex; align-items:center; justify-content:space-between; gap:6px; }
+  .gcard .foot b { letter-spacing:.06em; }
+  .gcard .foot .btn { padding:6px 10px; font-size:12px; }
+  .empty { color:var(--muted); padding:40px 0; text-align:center; }
+  dialog { background:var(--card); color:var(--text); border:1px solid var(--line); border-radius:16px; width:min(660px,94vw); padding:22px; }
   dialog::backdrop { background:rgba(0,0,0,.7); }
   dialog h2 { margin:0 0 4px; font-size:18px; }
   dialog p { color:var(--muted); font-size:13px; margin:0 0 16px; }
   label { display:block; font-size:12px; color:var(--muted); margin:12px 0 5px; }
   dialog input, dialog textarea { width:100%; background:var(--bg); border:1px solid var(--line); border-radius:10px; padding:10px; font-size:13px; }
-  dialog textarea { min-height:190px; font-family:ui-monospace,Consolas,monospace; font-size:12px; }
-  .row { display:flex; gap:8px; justify-content:flex-end; margin-top:16px; }
-  .toast { position:fixed; bottom:22px; left:50%; transform:translateX(-50%); background:#26262e; border:1px solid var(--line); padding:11px 18px; border-radius:12px; font-size:14px; opacity:0; transition:.2s; pointer-events:none; z-index:20; }
+  dialog textarea { min-height:220px; font-family:ui-monospace,Consolas,monospace; font-size:12px; }
+  .drow { display:flex; gap:8px; justify-content:flex-end; margin-top:16px; }
+  .toast { position:fixed; bottom:22px; left:50%; transform:translateX(-50%); background:#26262e; border:1px solid var(--line); padding:11px 18px; border-radius:12px; font-size:14px; opacity:0; transition:.2s; pointer-events:none; z-index:20; max-width:90vw; }
   .toast.show { opacity:1; }
-  .zoom { display:none; position:fixed; inset:0; background:rgba(0,0,0,.85); z-index:15; align-items:center; justify-content:center; }
+  .zoom { display:none; position:fixed; inset:0; background:rgba(0,0,0,.88); z-index:15; align-items:center; justify-content:center; }
   .zoom img { max-width:92vw; max-height:92vh; border-radius:12px; }
 </style>
 </head>
 <body>
 <header>
-  <div class="brand"><b>ORNAKUY</b><span>Dashboard Poster</span></div>
-  <div class="stats" id="stats"></div>
-  <div class="controls">
+  <div class="row1">
+    <div class="brand"><b>ORNAKUY</b><span>Dashboard Poster</span></div>
+    <div class="actions">
+      <span class="runstat" id="runstat"></span>
+      <button class="pull" id="pull">⬇ Tarik dari Discord</button>
+      <button class="iconbtn" id="refresh" title="Muat ulang">↻</button>
+      <button class="iconbtn" id="openSettings">⚙ Pengaturan</button>
+    </div>
+  </div>
+  <div class="row2">
     <div class="tabs" id="tabs">
-      <button data-f="todo" class="on">Belum</button>
-      <button data-f="done">Selesai</button>
-      <button data-f="all">Semua</button>
+      <button data-f="new" class="on">Baru <span class="n" id="nNew">0</span></button>
+      <button data-f="seen">Pernah di-generate <span class="n" id="nSeen">0</span></button>
+      <button data-f="results">Hasil generate <span class="n" id="nRes">0</span></button>
     </div>
     <input type="search" id="q" placeholder="Cari kode…" autocomplete="off">
-    <button class="iconbtn" id="refresh" title="Muat ulang">↻</button>
-    <button class="iconbtn" id="openSettings">⚙ Pengaturan</button>
   </div>
 </header>
-<div class="banner" id="banner">Drive belum tersambung. Buka <b>⚙ Pengaturan</b> lalu isi URL Apps Script dan PIN supaya hasil bisa tersimpan ke Google Drive.</div>
-<main id="grid"><div class="empty">Memuat pesanan…</div></main>
+<div class="banner" id="banner">Drive belum tersambung. Buka <b>⚙ Pengaturan</b> lalu isi URL Apps Script dan PIN supaya bisa upload ke Drive dan memakai tombol Tarik.</div>
+<div class="hint" id="hint"></div>
+<main id="main"><div class="empty">Memuat…</div></main>
 
 <dialog id="settings">
   <h2>Pengaturan</h2>
   <p>Disimpan di browser ini saja.</p>
   <label>URL Apps Script (Web app URL)</label>
   <input id="sUrl" placeholder="https://script.google.com/macros/s/…/exec">
-  <label>PIN Drive (sama dengan PIN di Apps Script)</label>
+  <label>PIN (sama dengan PIN di Apps Script)</label>
   <input id="sPin" type="password">
   <label>Link ChatGPT (Project kamu, atau biarkan chatgpt.com)</label>
   <input id="sGpt" placeholder="https://chatgpt.com/">
   <label>Prompt — {CODE} dan {SPELLED} otomatis diganti</label>
   <textarea id="sPrompt"></textarea>
-  <div class="row">
+  <div class="drow">
     <button class="iconbtn" id="resetPrompt">Prompt bawaan</button>
     <button class="iconbtn" id="closeSettings">Batal</button>
     <button class="btn primary" id="saveSettings" style="padding:9px 16px">Simpan</button>
@@ -103,6 +131,8 @@
 <div class="toast" id="toast"></div>
 
 <script>
+const REPO = 'afriyoe/ornakuy-poster-bot';
+const RAW = `https://raw.githubusercontent.com/${REPO}/main/`;
 const DEFAULT_PROMPT = `The attached image is a sheet with 3 labeled panels:
 - Panel A (STYLE REFERENCE) = the finished poster style I want. Copy its look and layout.
 - Panel B (FRONT) and Panel C (BACK) = photos of the Roblox avatar outfit I am selling (the product).
@@ -130,72 +160,131 @@ const store = {
 };
 const cfg = () => ({ url: store.get('url', '').trim(), pin: store.get('pin', ''), gpt: store.get('gpt', '') || 'https://chatgpt.com/', prompt: store.get('prompt', '') || DEFAULT_PROMPT });
 
-let orders = [], done = {}, todayName = '', filter = 'todo', activeCode = null;
+let orders = [], driveDone = {}, driveFiles = [], legacy = [], todayName = '', rootUrl = '', tab = 'new', activeId = null;
 const $ = id => document.getElementById(id);
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-function toast(msg, ms = 2200) { const t = $('toast'); t.textContent = msg; t.classList.add('show'); clearTimeout(t._h); t._h = setTimeout(() => t.classList.remove('show'), ms); }
+function toast(msg, ms = 2400) { const t = $('toast'); t.textContent = msg; t.classList.add('show'); clearTimeout(t._h); t._h = setTimeout(() => t.classList.remove('show'), ms); }
 function fmt(t) { try { return new Date(t).toLocaleString('id-ID', { day:'numeric', month:'short', hour:'2-digit', minute:'2-digit' }); } catch (e) { return ''; } }
+const raw = p => RAW + p;
+const thumb = id => `https://drive.google.com/thumbnail?id=${encodeURIComponent(id)}&sz=w800`;
 
 async function drive(body) {
   const c = cfg();
-  if (!c.url || !c.pin) throw new Error('Drive belum diatur');
+  if (!c.url || !c.pin) throw new Error('Drive belum diatur di ⚙ Pengaturan');
   const r = await fetch(c.url, { method:'POST', headers:{ 'Content-Type':'text/plain;charset=utf-8' }, body: JSON.stringify({ key: c.pin, ...body }) });
   const j = await r.json();
   if (!j.ok) throw new Error(j.error || 'Gagal');
   return j;
 }
 
+async function ghJson(path) {
+  const r = await fetch(`https://api.github.com/repos/${REPO}/contents/${path}?ref=main&t=${Date.now()}`, { cache:'no-store' });
+  if (!r.ok) throw new Error('GitHub ' + r.status);
+  const j = await r.json();
+  const bytes = Uint8Array.from(atob(j.content.replace(/\n/g, '')), c => c.charCodeAt(0));
+  return JSON.parse(new TextDecoder().decode(bytes));
+}
+async function loadJson(path) {
+  try { return await ghJson(path); }
+  catch (e) { try { return await (await fetch(path + '?' + Date.now())).json(); } catch (e2) { return null; } }
+}
+
+// Hasil yang sudah ada: Drive (utama) + poster lama di GitHub (output/)
+function resultFor(code) {
+  if (driveDone[code]) return { src:'drive', ...driveDone[code] };
+  const l = legacy.find(x => x.code === code);
+  return l ? { src:'github', code, folder:'Lama (GitHub)', file:l.file } : null;
+}
+
 async function loadAll() {
-  try {
-    orders = await (await fetch('orders.json?' + Date.now())).json();
-  } catch (e) { orders = []; }
+  const [o, l] = await Promise.all([loadJson('orders.json'), loadJson('data.json')]);
+  orders = o || []; legacy = (l || []).filter(x => x && x.code && x.file);
   const c = cfg();
   $('banner').style.display = (c.url && c.pin) ? 'none' : 'block';
   if (c.url && c.pin) {
-    try { const j = await drive({ action:'list' }); done = j.done || {}; todayName = j.today || ''; }
+    try { const j = await drive({ action:'list' }); driveDone = j.done || {}; driveFiles = j.files || []; todayName = j.today || ''; rootUrl = j.rootUrl || ''; }
     catch (e) { toast('Drive: ' + e.message, 3500); }
   }
   render();
+  loadRunStatus();
 }
 
 function render() {
   const q = $('q').value.trim().toUpperCase();
-  const isDone = o => !!done[o.code];
-  const todayCount = Object.values(done).filter(d => d.folder === todayName).length;
-  $('stats').innerHTML =
-    `<span class="pill">Belum <b>${orders.filter(o => !isDone(o)).length}</b></span>` +
-    `<span class="pill">Selesai <b>${orders.filter(isDone).length}</b></span>` +
-    (todayName ? `<span class="pill">Drive ${esc(todayName)}: <b>${todayCount}</b></span>` : '');
-  const list = orders.filter(o => (filter === 'all' || (filter === 'done') === isDone(o)) && (!q || o.code.includes(q)));
-  if (!list.length) { $('grid').innerHTML = `<div class="empty">${filter === 'todo' ? 'Semua pesanan sudah selesai 🎉' : 'Tidak ada pesanan.'}</div>`; return; }
-  $('grid').innerHTML = list.map(o => {
-    const d = done[o.code];
-    return `
-    <div class="card ${d ? 'done' : ''} ${activeCode === o.code ? 'active' : ''}" data-code="${esc(o.code)}" tabindex="0">
-      <div class="top">
-        <div><div class="code">${esc(o.code)}</div><div class="meta">${esc(o.author)} · ${fmt(o.time)}</div></div>
-        <span class="badge ${d ? 'ok' : ''}">${d ? '✓ Selesai' : 'Belum'}</span>
+  const match = code => !q || code.includes(q);
+  const newList = orders.filter(o => !resultFor(o.code));
+  const seenList = orders.filter(o => resultFor(o.code));
+  const results = [
+    ...driveFiles.map(f => ({ ...f, src:'drive' })),
+    ...legacy.filter(x => !driveDone[x.code]).map(x => ({ code:x.code, folder:'Lama (GitHub)', src:'github', file:x.file, t:0 }))
+  ];
+  $('nNew').textContent = newList.length; $('nSeen').textContent = seenList.length; $('nRes').textContent = results.length;
+  const hints = {
+    new: 'Pesanan yang belum punya hasil. Kerjakan: Salin foto → Salin prompt → Buka ChatGPT → upload hasil ke Drive.',
+    seen: 'Kode yang sudah pernah punya hasil generate. Tetap ditampilkan supaya bisa dicek atau di-generate ulang.',
+    results: 'Semua hasil generate, dikelompokkan per folder tanggal di Google Drive.'
+  };
+  $('hint').textContent = hints[tab];
+  if (tab === 'results') return renderResults(results.filter(r => match(r.code)));
+  const list = (tab === 'new' ? newList : seenList).filter(o => match(o.code));
+  if (!list.length) { $('main').innerHTML = `<div class="empty">${tab === 'new' ? 'Tidak ada pesanan baru. Tekan ⬇ Tarik dari Discord untuk cek.' : 'Belum ada.'}</div>`; return; }
+  $('main').innerHTML = `<div class="grid">${list.map(orderCard).join('')}</div>`;
+}
+
+function orderCard(o) {
+  const r = resultFor(o.code);
+  const resImg = r ? (r.src === 'drive' ? thumb(r.id) : r.file) : '';
+  return `
+  <div class="card ${r ? 'done' : ''} ${activeId === o.message_id ? 'active' : ''}" data-id="${esc(o.message_id)}">
+    <div class="top">
+      <div><div class="code">${esc(o.code)}</div><div class="meta">${esc(o.author)} · ${fmt(o.time)}</div></div>
+      <div class="badges">
+        ${r ? `<span class="badge ok">✓ Sudah ada hasil · ${esc(r.folder)}</span>` : `<span class="badge">Belum di-generate</span>`}
+        ${o.repeat ? `<span class="badge rep">Kode ini pernah dikirim</span>` : ''}
       </div>
-      <div class="photos">
-        <div class="ph"><img src="${esc(o.front)}" loading="lazy" data-zoom alt="depan"><span>Depan</span></div>
-        <div class="ph"><img src="${esc(o.back)}" loading="lazy" data-zoom alt="belakang"><span>Belakang</span></div>
-      </div>
-      <div class="steps">
-        <button class="btn primary" data-act="photo"><small>Langkah 1</small>Salin foto</button>
-        <button class="btn primary" data-act="prompt"><small>Langkah 2</small>Salin prompt</button>
-        <button class="btn" data-act="gpt"><small>Langkah 3</small>Buka ChatGPT ↗</button>
-      </div>
-      ${d ? `<div class="result">✓ Tersimpan di <a href="${esc(d.url)}" target="_blank" rel="noopener">Drive · ${esc(d.folder)}</a><button data-act="redo">Ganti</button></div>`
-          : `<div class="drop" data-act="upload"><b>Langkah 4</b> · Upload hasil ChatGPT ke Drive<br><span style="font-size:12px">klik, seret gambar ke sini, atau pilih kartu lalu Ctrl+V</span></div>`}
-    </div>`;
-  }).join('');
+    </div>
+    <div class="photos ${r ? 'three' : ''}">
+      <div class="ph"><img src="${esc(raw(o.front))}" loading="lazy" data-zoom alt="depan"><span>Depan</span></div>
+      <div class="ph"><img src="${esc(raw(o.back))}" loading="lazy" data-zoom alt="belakang"><span>Belakang</span></div>
+      ${r ? `<div class="ph res"><img src="${esc(resImg)}" loading="lazy" data-zoom alt="hasil" referrerpolicy="no-referrer"><span>Hasil</span></div>` : ''}
+    </div>
+    <div class="steps">
+      <button class="btn primary" data-act="photo"><small>Langkah 1</small>Salin foto</button>
+      <button class="btn primary" data-act="prompt"><small>Langkah 2</small>Salin prompt</button>
+      <button class="btn" data-act="gpt"><small>Langkah 3</small>Buka ChatGPT ↗</button>
+    </div>
+    ${r ? `<div class="result">
+        ${r.src === 'drive' ? `<a class="btn drive" href="${esc(r.url)}" target="_blank" rel="noopener">Buka di Drive ↗</a>` : `<a class="btn" href="${esc(r.file)}" target="_blank" rel="noopener">Lihat hasil lama ↗</a>`}
+        <button class="btn" data-act="upload">Upload hasil baru</button>
+      </div>`
+      : `<div class="drop" data-act="upload"><b>Langkah 4</b> · Upload hasil ChatGPT ke Drive<br><span style="font-size:12px">klik, seret gambar ke sini, atau klik kartu lalu Ctrl+V</span></div>`}
+  </div>`;
+}
+
+function renderResults(list) {
+  if (!list.length) { $('main').innerHTML = '<div class="empty">Belum ada hasil generate di Drive.</div>'; return; }
+  const groups = {};
+  list.forEach(r => { (groups[r.folder] = groups[r.folder] || []).push(r); });
+  const keys = Object.keys(groups).sort((a, b) => Math.max(...groups[b].map(x => x.t || 0)) - Math.max(...groups[a].map(x => x.t || 0)));
+  $('main').innerHTML = keys.map(k => {
+    const g = groups[k]; const fUrl = g[0].folderUrl;
+    return `<div class="day"><h3>${esc(k)}${k === todayName ? ' · hari ini' : ''}</h3><span class="cnt">${g.length} poster</span>
+      ${fUrl ? `<a class="btn drive" href="${esc(fUrl)}" target="_blank" rel="noopener">Buka folder Drive ↗</a>` : ''}</div>
+      <div class="gal">${g.map(r => `
+        <div class="gcard">
+          <div class="img"><img src="${esc(r.src === 'drive' ? thumb(r.id) : r.file)}" loading="lazy" data-zoom alt="${esc(r.code)}" referrerpolicy="no-referrer"></div>
+          <div class="foot"><b>${esc(r.code)}</b>
+            ${r.src === 'drive' ? `<a class="btn drive" href="${esc(r.url)}" target="_blank" rel="noopener">Drive ↗</a>` : `<a class="btn" href="${esc(r.file)}" download>Unduh</a>`}
+          </div>
+        </div>`).join('')}</div>`;
+  }).join('') + (rootUrl ? `<div class="day"><a class="btn drive" style="margin-left:0" href="${esc(rootUrl)}" target="_blank" rel="noopener">Buka folder utama "Foto Avatar Roblox" ↗</a></div>` : '');
 }
 
 function loadImg(src) {
-  return new Promise((res, rej) => { const i = new Image(); i.onload = () => res(i); i.onerror = rej; i.src = src; });
+  return new Promise((res, rej) => { const i = new Image(); i.crossOrigin = 'anonymous'; i.onload = () => res(i); i.onerror = rej; i.src = src; });
 }
 async function combinedBlob(o) {
-  const imgs = await Promise.all([loadImg('reference.jpg'), loadImg(o.front), loadImg(o.back)]);
+  const imgs = await Promise.all([loadImg('reference.jpg'), loadImg(raw(o.front)), loadImg(raw(o.back))]);
   const labels = ['A  STYLE REFERENCE', 'B  FRONT', 'C  BACK'];
   const H = 1200, gap = 24, top = 70;
   const ws = imgs.map(i => Math.round(i.naturalWidth * H / i.naturalHeight));
@@ -213,14 +302,14 @@ function download(blob, name) {
 }
 const promptFor = code => cfg().prompt.replaceAll('{CODE}', code).replaceAll('{SPELLED}', code.split('').join('-'));
 
-async function act(kind, o, cardEl) {
+async function act(kind, o) {
   if (kind === 'photo') {
     try {
       const blob = await combinedBlob(o);
       await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]);
       toast('Referensi + foto depan + belakang tersalin. Tempel (Ctrl+V) di ChatGPT');
     } catch (e) {
-      try { download(await combinedBlob(o), o.code + '_depan-belakang.png'); toast('Foto diunduh — seret ke ChatGPT'); }
+      try { download(await combinedBlob(o), o.code + '_referensi-depan-belakang.png'); toast('Foto diunduh — seret ke ChatGPT'); }
       catch (e2) { toast('Gagal menyiapkan foto'); }
     }
   } else if (kind === 'prompt') {
@@ -228,7 +317,7 @@ async function act(kind, o, cardEl) {
     catch (e) { toast('Gagal menyalin prompt'); }
   } else if (kind === 'gpt') {
     window.open(cfg().gpt, 'ornakuy_chatgpt');
-  } else if (kind === 'upload' || kind === 'redo') {
+  } else if (kind === 'upload') {
     const inp = document.createElement('input'); inp.type = 'file'; inp.accept = 'image/*';
     inp.onchange = () => inp.files[0] && upload(o, inp.files[0]);
     inp.click();
@@ -239,41 +328,77 @@ async function upload(o, file) {
   if (!file || !file.type.startsWith('image/')) { toast('Itu bukan gambar'); return; }
   const c = cfg();
   if (!c.url || !c.pin) { toast('Atur Drive dulu di ⚙ Pengaturan', 3000); $('openSettings').click(); return; }
-  const card = document.querySelector(`.card[data-code="${o.code}"] .drop`);
-  if (card) { card.classList.add('busy'); card.textContent = 'Mengupload ke Drive…'; }
+  const drop = document.querySelector(`.card[data-id="${o.message_id}"] .drop`);
+  if (drop) { drop.classList.add('busy'); drop.textContent = 'Mengupload ke Drive…'; } else toast('Mengupload ke Drive…', 8000);
   try {
     const data = await new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(String(r.result).split(',')[1]); r.onerror = rej; r.readAsDataURL(file); });
     const j = await drive({ action:'upload', code:o.code, mime:file.type, data });
-    done[o.code] = { url:j.url, folder:j.folder, t:Date.now() }; todayName = j.folder;
+    const item = { code:j.code, id:j.id, url:j.url, folder:j.folder, folderUrl:j.folderUrl, t:j.t };
+    driveDone[o.code] = item; driveFiles = [item, ...driveFiles.filter(f => !(f.code === item.code && f.folder === item.folder))];
+    todayName = j.folder;
     toast(`✓ ${o.code} tersimpan di Drive · ${j.folder}`, 3000);
     render();
-  } catch (e) {
-    toast('Upload gagal: ' + e.message, 4000); render();
-  }
+  } catch (e) { toast('Upload gagal: ' + e.message, 4500); render(); }
 }
 
-$('grid').addEventListener('click', e => {
+// ---- Tarik dari Discord (lewat Apps Script -> GitHub Actions) ----
+async function latestRun() {
+  const r = await fetch(`https://api.github.com/repos/${REPO}/actions/workflows/poster.yml/runs?per_page=1&t=${Date.now()}`, { cache:'no-store' });
+  const j = await r.json(); return (j.workflow_runs || [])[0];
+}
+async function loadRunStatus() {
+  try {
+    const run = await latestRun(); if (!run) return;
+    const st = run.status !== 'completed' ? 'sedang berjalan…' : (run.conclusion === 'success' ? 'berhasil' : 'gagal');
+    $('runstat').innerHTML = `Tarik terakhir: <b>${fmt(run.created_at)}</b> · ${st}`;
+  } catch (e) {}
+}
+$('pull').onclick = async () => {
+  const b = $('pull'); b.disabled = true; b.textContent = 'Memulai…';
+  try {
+    const before = await latestRun().catch(() => null);
+    await drive({ action:'pull' });
+    b.textContent = 'Menarik pesanan…';
+    let run = null;
+    for (let i = 0; i < 40; i++) {
+      await new Promise(r => setTimeout(r, 6000));
+      run = await latestRun().catch(() => null);
+      if (run && (!before || run.id !== before.id) && run.status === 'completed') break;
+    }
+    if (run && run.conclusion === 'success') {
+      b.textContent = 'Memuat…';
+      await new Promise(r => setTimeout(r, 3000));
+      const prev = orders.length; await loadAll();
+      const added = orders.length - prev;
+      toast(added > 0 ? `✓ ${added} pesanan baru masuk` : 'Selesai — tidak ada pesanan baru di Discord', 3500);
+    } else toast('Tarik belum selesai / gagal. Cek lagi sebentar.', 4000);
+  } catch (e) { toast('Tarik gagal: ' + e.message, 5000); }
+  b.disabled = false; b.textContent = '⬇ Tarik dari Discord'; loadRunStatus();
+};
+
+// ---- Event ----
+$('main').addEventListener('click', e => {
+  if (e.target.matches('img[data-zoom]')) { $('zoomImg').src = e.target.src; $('zoom').style.display = 'flex'; }
   const cardEl = e.target.closest('.card'); if (!cardEl) return;
-  const o = orders.find(x => x.code === cardEl.dataset.code);
-  activeCode = o.code;
+  const o = orders.find(x => x.message_id === cardEl.dataset.id); if (!o) return;
+  activeId = o.message_id;
   document.querySelectorAll('.card.active').forEach(c => c.classList.remove('active')); cardEl.classList.add('active');
-  if (e.target.matches('img[data-zoom]')) { $('zoomImg').src = e.target.src; $('zoom').style.display = 'flex'; return; }
-  const b = e.target.closest('[data-act]'); if (b) act(b.dataset.act, o, cardEl);
+  const b = e.target.closest('[data-act]'); if (b) act(b.dataset.act, o);
 });
-$('grid').addEventListener('dragover', e => { const d = e.target.closest('.drop'); if (d) { e.preventDefault(); d.classList.add('over'); } });
-$('grid').addEventListener('dragleave', e => { const d = e.target.closest('.drop'); if (d) d.classList.remove('over'); });
-$('grid').addEventListener('drop', e => {
+$('main').addEventListener('dragover', e => { const d = e.target.closest('.drop'); if (d) { e.preventDefault(); d.classList.add('over'); } });
+$('main').addEventListener('dragleave', e => { const d = e.target.closest('.drop'); if (d) d.classList.remove('over'); });
+$('main').addEventListener('drop', e => {
   const d = e.target.closest('.drop'); if (!d) return; e.preventDefault();
-  const o = orders.find(x => x.code === d.closest('.card').dataset.code);
+  const o = orders.find(x => x.message_id === d.closest('.card').dataset.id);
   upload(o, e.dataTransfer.files[0]);
 });
 document.addEventListener('paste', e => {
-  if (!activeCode || e.target.closest('dialog')) return;
+  if (!activeId || e.target.closest('dialog')) return;
   const f = [...(e.clipboardData?.files || [])].find(f => f.type.startsWith('image/'));
-  if (f) { e.preventDefault(); upload(orders.find(x => x.code === activeCode), f); }
+  if (f) { e.preventDefault(); upload(orders.find(x => x.message_id === activeId), f); }
 });
 $('zoom').onclick = () => $('zoom').style.display = 'none';
-$('tabs').onclick = e => { const b = e.target.closest('button'); if (!b) return; filter = b.dataset.f; [...$('tabs').children].forEach(x => x.classList.toggle('on', x === b)); render(); };
+$('tabs').onclick = e => { const b = e.target.closest('button'); if (!b) return; tab = b.dataset.f; [...$('tabs').children].forEach(x => x.classList.toggle('on', x === b)); render(); };
 $('q').oninput = render;
 $('refresh').onclick = () => { toast('Memuat ulang…', 1000); loadAll(); };
 $('openSettings').onclick = () => { const c = cfg(); $('sUrl').value = c.url; $('sPin').value = c.pin; $('sGpt').value = store.get('gpt', ''); $('sPrompt').value = c.prompt; $('settings').showModal(); };
@@ -286,7 +411,7 @@ $('saveSettings').onclick = () => {
   $('settings').close(); toast('Tersimpan'); loadAll();
 };
 loadAll();
-setInterval(loadAll, 120000);
+setInterval(loadAll, 300000);
 </script>
 </body>
 </html>
