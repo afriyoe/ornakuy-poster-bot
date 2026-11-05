@@ -89,6 +89,17 @@
   .mini { display:flex; gap:6px; padding:8px 16px 0; }
   .mini button { flex:1; background:none; border:1px solid var(--line); color:var(--muted); border-radius:8px; padding:6px; font-size:11.5px; cursor:pointer; }
   .mini button:hover { color:var(--text); }
+  .gcard .img.vid { aspect-ratio:9/16; position:relative; }
+  .vcard { cursor:pointer; }
+  .play { position:absolute; left:50%; top:50%; transform:translate(-50%,-50%); width:58px; height:58px; border-radius:50%; background:rgba(0,0,0,.55); color:#fff; display:flex; align-items:center; justify-content:center; font-size:22px; pointer-events:none; }
+  .vname { font-size:12px; color:var(--muted); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:58%; }
+  .cnt.low { color:var(--warn); }
+  .when { color:var(--info); font-weight:600; }
+  .day.tomorrow h3 .when { color:var(--ok); }
+  .vbox { width:min(460px,92vw); display:flex; flex-direction:column; gap:10px; }
+  .vbox iframe { width:100%; aspect-ratio:9/16; max-height:82vh; border:0; border-radius:12px; background:#000; }
+  .vbar { display:flex; gap:8px; justify-content:center; }
+  .vbar .btn { padding:9px 16px; }
 </style>
 </head>
 <body>
@@ -107,6 +118,7 @@
       <button data-f="new" class="on">Baru <span class="n" id="nNew">0</span></button>
       <button data-f="seen">Pernah di-generate <span class="n" id="nSeen">0</span></button>
       <button data-f="results">Hasil generate <span class="n" id="nRes">0</span></button>
+      <button data-f="videos">Video Konten <span class="n" id="nVid">0</span></button>
     </div>
     <input type="search" id="q" placeholder="Cari kode…" autocomplete="off">
   </div>
@@ -133,6 +145,7 @@
   </div>
 </dialog>
 <div class="zoom" id="zoom"><img id="zoomImg" alt=""></div>
+<div class="zoom" id="vzoom"><div class="vbox"><iframe id="vframe" allow="autoplay; fullscreen" allowfullscreen></iframe><div class="vbar"><a id="vopen" class="btn drive" target="_blank" rel="noopener">Buka di Drive ↗</a><button class="btn" id="vclose">Tutup</button></div></div></div>
 <div class="toast" id="toast"></div>
 
 <script>
@@ -165,6 +178,7 @@ const store = {
 };
 const cfg = () => ({ url: store.get('url', '').trim(), pin: store.get('pin', ''), gpt: store.get('gpt', '') || 'https://chatgpt.com/', prompt: store.get('prompt', '') || DEFAULT_PROMPT });
 
+let videoGroups = null;
 let orders = [], driveDone = {}, driveFiles = [], legacy = [], todayName = '', rootUrl = '', tab = 'new', activeId = null;
 const $ = id => document.getElementById(id);
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -209,6 +223,7 @@ async function loadAll() {
   if (c.url && c.pin) {
     try { const j = await drive({ action:'list' }); driveDone = j.done || {}; driveFiles = j.files || []; todayName = j.today || ''; rootUrl = j.rootUrl || ''; }
     catch (e) { toast('Drive: ' + e.message, 3500); }
+    drive({ action:'videos' }).then(v => { videoGroups = v.groups || []; render(); }).catch(e => { videoGroups = []; if (tab === 'videos') toast('Video: ' + e.message, 4000); render(); });
   }
   render();
   loadRunStatus();
@@ -224,12 +239,16 @@ function render() {
     ...legacy.filter(x => !driveDone[x.code]).map(x => ({ code:x.code, folder:'Lama (GitHub)', src:'github', file:x.file, t:0 }))
   ];
   $('nNew').textContent = newList.length; $('nSeen').textContent = seenList.length; $('nRes').textContent = results.length;
+  const tmr = (videoGroups || []).find(g => { const d = parseFolderDate(g.folder); return d && dayDiff(d) === 1; });
+  $('nVid').textContent = tmr ? tmr.files.length : 0;
   const hints = {
     new: 'Klik 🚀 Kirim ke ChatGPT → di ChatGPT tekan Ctrl+V lalu Enter → setelah jadi, upload hasilnya di kartu (Langkah 2).',
     seen: 'Foto mentah dan kode yang sudah pernah di-generate. Hasilnya ada di tab Hasil generate.',
-    results: 'Semua hasil generate, dikelompokkan per folder tanggal di Google Drive.'
+    results: 'Semua hasil generate, dikelompokkan per folder tanggal di Google Drive.',
+    videos: 'Video konten tim per folder tanggal tayang (angka di tab = video untuk besok). Klik video untuk preview.'
   };
   $('hint').textContent = hints[tab];
+  if (tab === 'videos') { renderVideos(); return hydrateDrive(); }
   if (tab === 'results') { renderResults(results.filter(r => match(r.code))); return hydrateDrive(); }
   const list = (tab === 'new' ? newList : seenList).filter(o => match(o.code));
   if (!list.length) { $('main').innerHTML = `<div class="empty">${tab === 'new' ? 'Tidak ada pesanan baru. Tekan ⬇ Tarik dari Discord untuk cek.' : 'Belum ada.'}</div>`; return; }
@@ -279,6 +298,45 @@ function hydrateDrive() {
       document.querySelectorAll(`img[data-drive-id="${id}"]`).forEach(x => x.src = thumbCache[id]);
     }).catch(() => { delete thumbCache[id]; });
   });
+}
+
+const BULAN_ID = { jan:0, feb:1, mar:2, apr:3, mei:4, may:4, jun:5, jul:6, agu:7, ags:7, aug:7, sep:8, okt:9, oct:9, nov:10, des:11, dec:11 };
+function parseFolderDate(name) {
+  const m = String(name || '').trim().toLowerCase().match(/^(\d{1,2})\s+([a-z]+)\.?(?:\s+(\d{4}))?/);
+  if (!m) return null;
+  const mon = BULAN_ID[m[2].slice(0, 3)]; if (mon === undefined) return null;
+  const now = new Date(); const y = m[3] ? +m[3] : now.getFullYear();
+  let d = new Date(y, mon, +m[1]);
+  if (!m[3] && d - now > 200 * 864e5) d = new Date(y - 1, mon, +m[1]);
+  if (!m[3] && now - d > 200 * 864e5) d = new Date(y + 1, mon, +m[1]);
+  return d;
+}
+function dayDiff(d) { const a = new Date(); a.setHours(0,0,0,0); const b = new Date(d); b.setHours(0,0,0,0); return Math.round((b - a) / 864e5); }
+function dayLabel(d) { const n = dayDiff(d); return n === 0 ? 'Hari ini' : n === 1 ? 'Besok' : n === -1 ? 'Kemarin' : n > 1 ? `${n} hari lagi` : `${-n} hari lalu`; }
+function renderVideos() {
+  if (videoGroups === null) { $('main').innerHTML = '<div class="empty">Memuat video… (pastikan Drive sudah tersambung di ⚙ Pengaturan)</div>'; return; }
+  const q = $('q').value.trim().toLowerCase();
+  const gs = videoGroups.map(g => ({ ...g, d: parseFolderDate(g.folder) }))
+    .filter(g => !q || g.folder.toLowerCase().includes(q) || g.files.some(f => f.name.toLowerCase().includes(q)))
+    .sort((a, b) => (b.d || 0) - (a.d || 0));
+  if (!gs.length) { $('main').innerHTML = '<div class="empty">Belum ada folder video.</div>'; return; }
+  $('main').innerHTML = gs.map(g => {
+    const n = g.d ? dayDiff(g.d) : null;
+    const vids = g.files.filter(f => f.mime.startsWith('video/')).length;
+    return `<div class="day ${n === 1 ? 'tomorrow' : ''}"><h3>${esc(g.folder)}${g.d ? ` · <span class="when">${dayLabel(g.d)}</span>` : ''}</h3>
+      <span class="cnt ${vids < 3 ? 'low' : ''}">${vids}/3 video</span>
+      <a class="btn drive" href="${esc(g.folderUrl)}" target="_blank" rel="noopener">Buka folder ↗</a></div>
+      <div class="gal">${g.files.map(f => `
+        <div class="gcard vcard" data-vid="${esc(f.id)}" data-mime="${esc(f.mime)}">
+          <div class="img vid"><img src="${BLANK}" data-drive-id="${esc(f.id)}" alt="">${f.mime.startsWith('video/') ? '<span class="play">▶</span>' : ''}</div>
+          <div class="foot"><span class="vname" title="${esc(f.name)}">${esc(f.name)}</span><a class="btn drive" href="${esc(f.url)}" target="_blank" rel="noopener">Drive ↗</a></div>
+        </div>`).join('') || '<div class="empty" style="padding:8px 0;text-align:left">Belum ada video di folder ini.</div>'}</div>`;
+  }).join('');
+}
+function openVideo(id) {
+  $('vframe').src = `https://drive.google.com/file/d/${encodeURIComponent(id)}/preview`;
+  $('vopen').href = `https://drive.google.com/file/d/${encodeURIComponent(id)}/view`;
+  $('vzoom').style.display = 'flex';
 }
 
 function renderResults(list) {
@@ -417,6 +475,8 @@ $('pull').onclick = async () => {
 
 // ---- Event ----
 $('main').addEventListener('click', e => {
+  const vc = e.target.closest('.vcard');
+  if (vc && !e.target.closest('a')) { openVideo(vc.dataset.vid); return; }
   if (e.target.matches('img[data-zoom]')) { $('zoomImg').src = e.target.src; $('zoom').style.display = 'flex'; const id = e.target.dataset.driveId; if (id) drive({ action:'image', id }).then(j => { $('zoomImg').src = `data:${j.mime};base64,${j.data}`; }).catch(() => {}); }
   const cardEl = e.target.closest('.card'); if (!cardEl) return;
   const o = orders.find(x => x.message_id === cardEl.dataset.id); if (!o) return;
@@ -442,6 +502,8 @@ document.addEventListener('paste', e => {
   if (f) { e.preventDefault(); upload(orders.find(x => x.message_id === activeId), f); }
 });
 $('zoom').onclick = () => $('zoom').style.display = 'none';
+$('vclose').onclick = () => { $('vzoom').style.display = 'none'; $('vframe').src = 'about:blank'; };
+$('vzoom').onclick = e => { if (e.target.id === 'vzoom') $('vclose').click(); };
 $('tabs').onclick = e => { const b = e.target.closest('button'); if (!b) return; tab = b.dataset.f; [...$('tabs').children].forEach(x => x.classList.toggle('on', x === b)); render(); };
 $('q').oninput = render;
 $('refresh').onclick = () => { toast('Memuat ulang…', 1000); loadAll(); };
