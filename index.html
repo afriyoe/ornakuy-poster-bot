@@ -307,6 +307,12 @@ function download(blob, name) {
 }
 const promptFor = code => cfg().prompt.replaceAll('{CODE}', code).replaceAll('{SPELLED}', code.split('').join('-'));
 
+function openGpt(url) {
+  const w = Math.min(980, Math.round(screen.availWidth * 0.55)), h = screen.availHeight - 40;
+  const left = screen.availWidth - w, top = 0;
+  const win = window.open(url, 'ornakuy_chatgpt', `popup=yes,width=${w},height=${h},left=${left},top=${top}`);
+  if (win) win.focus(); else window.open(url, '_blank');
+}
 const blobCache = {};
 function getBlob(o) { return blobCache[o.message_id] || (blobCache[o.message_id] = combinedBlob(o).catch(e => { delete blobCache[o.message_id]; throw e; })); }
 function gptUrl(o) { const base = cfg().gpt; return base + (base.includes('?') ? '&' : '?') + 'prompt=' + encodeURIComponent(promptFor(o.code)); }
@@ -317,7 +323,7 @@ async function act(kind, o) {
       const blob = await getBlob(o);
       await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]);
     } catch (e) { toast('Gagal menyalin foto — coba tombol "Salin foto saja"', 4000); return; }
-    window.open(gptUrl(o), 'ornakuy_chatgpt');
+    openGpt(gptUrl(o));
     toast('Foto tersalin & prompt sudah terisi. Di ChatGPT: tekan Ctrl+V lalu Enter', 6000);
     return;
   }
@@ -334,7 +340,7 @@ async function act(kind, o) {
     try { await navigator.clipboard.writeText(promptFor(o.code)); toast('Prompt ' + o.code + ' tersalin. Tempel (Ctrl+V) di ChatGPT'); }
     catch (e) { toast('Gagal menyalin prompt'); }
   } else if (kind === 'gpt') {
-    window.open(cfg().gpt, 'ornakuy_chatgpt');
+    openGpt(cfg().gpt);
   } else if (kind === 'upload') {
     const inp = document.createElement('input'); inp.type = 'file'; inp.accept = 'image/*';
     inp.onchange = () => inp.files[0] && upload(o, inp.files[0]);
