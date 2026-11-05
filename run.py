@@ -21,12 +21,12 @@ import requests
 from PIL import Image, ImageDraw, ImageFont
 from openai import OpenAI
 
-ROOT = Path(__file__).resolve().parent.parent
+ROOT = Path(__file__).resolve().parent
 STATE = ROOT / "state.json"
-OUT = ROOT / "docs" / "output"
-DOCS_DATA = ROOT / "docs" / "data.json"
-REF = ROOT / "assets" / "reference.jpg"
-FONT = ROOT / "assets" / "fonts" / "InterDisplay-Black.otf"
+OUT = ROOT / "output"
+DOCS_DATA = ROOT / "data.json"
+REF = ROOT / "reference.jpg"
+FONT = ROOT / "InterDisplay-Black.otf"
 
 API = "https://discord.com/api/v10"
 TOKEN = os.environ["DISCORD_BOT_TOKEN"]
@@ -209,7 +209,6 @@ def main():
             state["last_message_id"] = msgs[-1]["id"]
 
     STATE.write_text(json.dumps(state, indent=2))
-    DOCS_DATA.parent.mkdir(exist_ok=True)
     DOCS_DATA.write_text(json.dumps(data, indent=2, ensure_ascii=False))
     print(f"Selesai: {made} poster dibuat")
 
