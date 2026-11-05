@@ -104,6 +104,24 @@
   .zoom .zbox img { max-height:84vh; }
   .icbtn { width:42px; height:42px; display:inline-flex; align-items:center; justify-content:center; border-radius:50%; background:var(--chrome); color:#111; border:0; cursor:pointer; font-size:16px; text-decoration:none; }
   .icbtn:hover { filter:brightness(1.1); }
+  .postbar { display:flex; flex-wrap:wrap; gap:10px; justify-content:space-between; margin-bottom:6px; }
+  .postbar .days, .postbar .links { display:flex; gap:6px; flex-wrap:wrap; }
+  .iconbtn.on { background:var(--chrome); color:#111; }
+  .prows { display:flex; flex-direction:column; gap:10px; margin-bottom:10px; }
+  .prow { display:flex; gap:14px; align-items:center; background:var(--card); border:1px solid var(--line); border-radius:14px; padding:10px; }
+  .pthumb { position:relative; width:72px; aspect-ratio:9/16; border-radius:10px; overflow:hidden; background:#222; flex:none; cursor:pointer; }
+  .pthumb img { width:100%; height:100%; object-fit:cover; display:block; }
+  .pthumb .play { width:34px; height:34px; font-size:14px; }
+  .pinfo { flex:1; display:flex; flex-direction:column; gap:6px; min-width:0; }
+  .pinfo .vname { max-width:100%; }
+  .chips { display:flex; flex-wrap:wrap; gap:6px; }
+  .chip { background:var(--card2); border:1px solid var(--line); color:var(--muted); border-radius:999px; padding:5px 11px; font-size:12px; cursor:pointer; }
+  .chip.terjadwal { color:var(--warn); border-color:#5a4520; background:#2a2111; }
+  .chip.terposting { color:var(--ok); border-color:#245c43; background:#11241b; }
+  .gcard[data-slide] { cursor:pointer; }
+  .gcard.sel { border-color:var(--chrome); box-shadow:0 0 0 2px var(--chrome); }
+  .tick { position:absolute; top:8px; right:8px; width:26px; height:26px; border-radius:50%; background:rgba(0,0,0,.6); border:2px solid #fff; color:#fff; display:flex; align-items:center; justify-content:center; font-size:14px; }
+  .gcard .img { position:relative; }
 </style>
 </head>
 <body>
@@ -123,6 +141,7 @@
       <button data-f="seen">Pernah di-generate <span class="n" id="nSeen">0</span></button>
       <button data-f="results">Hasil generate <span class="n" id="nRes">0</span></button>
       <button data-f="videos">Video Konten <span class="n" id="nVid">0</span></button>
+      <button data-f="post">Jadwal Posting</button>
     </div>
     <input type="search" id="q" placeholder="Cari kode…" autocomplete="off">
   </div>
@@ -140,6 +159,14 @@
   <input id="sPin" type="password">
   <label>Link ChatGPT (Project kamu, atau biarkan chatgpt.com)</label>
   <input id="sGpt" placeholder="https://chatgpt.com/">
+  <label>Nama akun, pisahkan koma (akun terakhir = Instagram)</label>
+  <input id="sAcc" placeholder="TikTok 1, TikTok 2, Instagram">
+  <label>Jam posting video, pisahkan koma</label>
+  <input id="sTimes" placeholder="12:00, 17:00, 20:00">
+  <label>Caption video ({TANGGAL} otomatis)</label>
+  <textarea id="sCapV" style="min-height:90px"></textarea>
+  <label>Caption slide foto ({KODE} = daftar kode terpilih)</label>
+  <textarea id="sCapS" style="min-height:90px"></textarea>
   <label>Prompt — {CODE} dan {SPELLED} otomatis diganti</label>
   <textarea id="sPrompt"></textarea>
   <div class="drow">
@@ -182,9 +209,13 @@ const store = {
   get(k, d) { try { const v = localStorage.getItem('ornakuy_' + k); return v === null ? d : v; } catch (e) { return d; } },
   set(k, v) { try { localStorage.setItem('ornakuy_' + k, v); } catch (e) {} }
 };
-const cfg = () => ({ url: store.get('url', '').trim(), pin: store.get('pin', ''), gpt: store.get('gpt', '') || 'https://chatgpt.com/', prompt: store.get('prompt', '') || DEFAULT_PROMPT });
+const DEF_CAPV = 'Outfit Roblox kece dari Ornakuy 🔥 Cek & pakai sekarang di Roblox!\n\n#roblox #robloxoutfit #robloxfashion #ornakuy #fyp';
+const DEF_CAPS = 'Outfit baru Ornakuy 🖤 Kode: {KODE}\nSimpan & cobain di Roblox!\n\n#roblox #robloxoutfit #robloxcode #ornakuy #fyp';
+const cfg = () => ({ url: store.get('url', '').trim(), pin: store.get('pin', ''), gpt: store.get('gpt', '') || 'https://chatgpt.com/', prompt: store.get('prompt', '') || DEFAULT_PROMPT,
+  acc: store.get('acc', '') || 'TikTok 1, TikTok 2, Instagram', times: store.get('times', '') || '12:00, 17:00, 20:00', capV: store.get('capV', '') || DEF_CAPV, capS: store.get('capS', '') || DEF_CAPS });
 
 let videoGroups = null;
+let plan = {};
 let zoomMeta = { id:null, name:'gambar' };
 let orders = [], driveDone = {}, driveFiles = [], legacy = [], todayName = '', rootUrl = '', tab = 'new', activeId = null;
 const $ = id => document.getElementById(id);
@@ -230,6 +261,7 @@ async function loadAll() {
   if (c.url && c.pin) {
     try { const j = await drive({ action:'list' }); driveDone = j.done || {}; driveFiles = j.files || []; todayName = j.today || ''; rootUrl = j.rootUrl || ''; }
     catch (e) { toast('Drive: ' + e.message, 3500); }
+    drive({ action:'plan_get' }).then(j => { plan = j.plan || {}; if (tab === 'post') render(); }).catch(() => {});
     drive({ action:'videos' }).then(v => { videoGroups = v.groups || []; render(); }).catch(e => { videoGroups = []; if (tab === 'videos') toast('Video: ' + e.message, 4000); render(); });
   }
   render();
@@ -252,9 +284,11 @@ function render() {
     new: 'Klik 🚀 Kirim ke ChatGPT → di ChatGPT tekan Ctrl+V lalu Enter → setelah jadi, upload hasilnya di kartu (Langkah 2).',
     seen: 'Foto mentah dan kode yang sudah pernah di-generate. Hasilnya ada di tab Hasil generate.',
     results: 'Semua hasil generate, dikelompokkan per folder tanggal di Google Drive.',
-    videos: 'Video konten tim per folder tanggal tayang (angka di tab = video untuk besok). Klik video untuk preview.'
+    videos: 'Video konten tim per folder tanggal tayang (angka di tab = video untuk besok). Klik video untuk preview.',
+    post: 'Checklist posting: download + salin caption, jadwalkan di TikTok Studio / Meta Business Suite / cloud phone, lalu klik nama akun untuk ubah status (belum → ⏰ terjadwal → ✓ terposting).'
   };
   $('hint').textContent = hints[tab];
+  if (tab === 'post') { renderPost(); return hydrateDrive(); }
   if (tab === 'videos') { renderVideos(); return hydrateDrive(); }
   if (tab === 'results') { renderResults(results.filter(r => match(r.code))); return hydrateDrive(); }
   const list = (tab === 'new' ? newList : seenList).filter(o => match(o.code));
@@ -346,6 +380,88 @@ function openVideo(id) {
   $('vopen').href = `https://drive.google.com/file/d/${encodeURIComponent(id)}/view`;
   $('vdl').href = `https://drive.google.com/uc?export=download&id=${encodeURIComponent(id)}`;
   $('vzoom').style.display = 'flex';
+}
+
+const POST_LINKS = [
+  ['TikTok Studio', 'https://www.tiktok.com/tiktokstudio/upload'],
+  ['Meta Business Suite', 'https://business.facebook.com/latest/content_calendar'],
+  ['VSPhone', 'https://cloud.vsphone.com/'],
+  ['VMOS Cloud', 'https://cloud.vmoscloud.com/']
+];
+const DL_ICON = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="M7 10l5 5 5-5"/><path d="M5 21h14"/></svg>';
+let postDay = 1;
+const slideSel = new Set();
+function accs() { const a = cfg().acc.split(',').map(x => x.trim()).filter(Boolean); return a.length >= 2 ? a : ['TikTok 1', 'TikTok 2', 'Instagram']; }
+function chip(key, ch) {
+  const st = ((plan[key] || {})[ch]) || '';
+  return `<button class="chip ${st}" data-plan="${esc(key)}" data-ch="${esc(ch)}" title="Klik untuk ubah status">${esc(ch)}${st === 'terjadwal' ? ' · ⏰' : st === 'terposting' ? ' · ✓' : ''}</button>`;
+}
+function postDate() { const d = new Date(); d.setDate(d.getDate() + postDay); return d; }
+function capVideo() { return cfg().capV.replaceAll('{TANGGAL}', postDate().toLocaleDateString('id-ID', { day:'numeric', month:'long', year:'numeric' })); }
+function capSlide(codes) { return cfg().capS.replaceAll('{KODE}', codes.join(', ')).replaceAll('{TANGGAL}', postDate().toLocaleDateString('id-ID', { day:'numeric', month:'long', year:'numeric' })); }
+function renderPost() {
+  if (videoGroups === null) { $('main').innerHTML = '<div class="empty">Memuat… (pastikan Drive sudah tersambung di ⚙ Pengaturan)</div>'; return; }
+  const a = accs(); const tts = a.slice(0, -1); const ig = a[a.length - 1];
+  const times = cfg().times.split(',').map(x => x.trim()).filter(Boolean);
+  const g = videoGroups.map(x => ({ ...x, d: parseFolderDate(x.folder) })).find(x => x.d && dayDiff(x.d) === postDay);
+  const vids = g ? g.files.filter(f => f.mime.startsWith('video/')) : [];
+  const dayName = postDate().toLocaleDateString('id-ID', { weekday:'long', day:'numeric', month:'long' });
+  const posters = driveFiles.filter(f => !tts.every(ch => ((plan['s_' + f.code] || {})[ch]) === 'terposting'));
+  const dayBtn = (n, l) => `<button class="iconbtn ${postDay === n ? 'on' : ''}" data-day="${n}">${l}</button>`;
+  $('main').innerHTML = `
+    <div class="postbar">
+      <div class="days">${dayBtn(0, 'Hari ini')}${dayBtn(1, 'Besok')}${dayBtn(2, 'Lusa')}</div>
+      <div class="links">${POST_LINKS.map(([l, u]) => `<a class="btn" href="${u}" target="_blank" rel="noopener">${l} ↗</a>`).join('')}</div>
+    </div>
+    <div class="day"><h3>🎬 Video · ${esc(dayName)}</h3><span class="cnt ${vids.length < 3 ? 'low' : ''}">${vids.length}/3 video</span>
+      <button class="btn" data-cap="v">📋 Salin caption video</button>${g ? `<a class="btn drive" href="${esc(g.folderUrl)}" target="_blank" rel="noopener">Buka folder ↗</a>` : ''}</div>
+    ${vids.length ? `<div class="prows">${vids.map((f, i) => `
+      <div class="prow">
+        <div class="pthumb vcard" data-vid="${esc(f.id)}"><img src="${BLANK}" data-drive-id="${esc(f.id)}" alt=""><span class="play">▶</span></div>
+        <div class="pinfo"><b>${times[i] ? '⏰ ' + esc(times[i]) + ' WIB' : 'Video ' + (i + 1)}</b><span class="vname" title="${esc(f.name)}">${esc(f.name)}</span>
+          <div class="chips">${tts.map(ch => chip('v_' + f.id, ch)).join('')}${chip('v_' + f.id, ig + ' Reels')}</div></div>
+        <a class="icbtn" href="https://drive.google.com/uc?export=download&id=${encodeURIComponent(f.id)}" target="_blank" rel="noopener" title="Download">${DL_ICON}</a>
+      </div>`).join('')}</div>` : '<div class="empty" style="text-align:left;padding:6px 0 18px">Belum ada video untuk tanggal ini di folder Konten Roblox.</div>'}
+    <div class="day"><h3>🖼️ Slide foto TikTok</h3><span class="cnt">${slideSel.size} dipilih</span>
+      <button class="btn" data-cap="s">📋 Salin caption slide</button><button class="btn" data-dlsel="1">⬇ Download terpilih</button><button class="btn" data-selall="1">Pilih semua</button></div>
+    ${posters.length ? `<div class="gal">${posters.map(f => `
+      <div class="gcard ${slideSel.has(f.code) ? 'sel' : ''}" data-slide="${esc(f.code)}">
+        <div class="img"><img src="${BLANK}" data-drive-id="${esc(f.id)}" alt="${esc(f.code)}"><span class="tick">${slideSel.has(f.code) ? '✓' : ''}</span></div>
+        <div class="foot" style="flex-direction:column;align-items:flex-start"><b>${esc(f.code)}</b><div class="chips">${tts.map(ch => chip('s_' + f.code, ch)).join('')}</div></div>
+      </div>`).join('')}</div>` : '<div class="empty" style="text-align:left">Semua poster sudah terposting di semua akun TikTok.</div>'}`;
+}
+async function onPostClick(e) {
+  const c = e.target.closest('[data-plan]');
+  if (c) {
+    const key = c.dataset.plan, ch = c.dataset.ch;
+    const cur = (plan[key] || {})[ch] || '';
+    const next = cur === '' ? 'terjadwal' : cur === 'terjadwal' ? 'terposting' : '';
+    plan[key] = { ...(plan[key] || {}), [ch]: next };
+    render();
+    drive({ action:'plan_set', id:key, value:plan[key] }).catch(err => toast('Gagal simpan status: ' + err.message, 4000));
+    return true;
+  }
+  const d = e.target.closest('[data-day]'); if (d) { postDay = +d.dataset.day; render(); return true; }
+  const cp = e.target.closest('[data-cap]');
+  if (cp) {
+    const txt = cp.dataset.cap === 'v' ? capVideo() : capSlide(slideSel.size ? [...slideSel] : []);
+    try { await navigator.clipboard.writeText(txt); toast('Caption tersalin'); } catch (err) { toast('Gagal menyalin'); }
+    return true;
+  }
+  if (e.target.closest('[data-selall]')) { driveFiles.forEach(f => slideSel.add(f.code)); render(); return true; }
+  if (e.target.closest('[data-dlsel]')) {
+    if (!slideSel.size) { toast('Pilih poster dulu'); return true; }
+    toast('Mengunduh ' + slideSel.size + ' poster…', 4000);
+    for (const code of slideSel) {
+      const f = driveFiles.find(x => x.code === code); if (!f) continue;
+      try { const j = await drive({ action:'image', id:f.id }); const blob = await (await fetch(`data:${j.mime};base64,${j.data}`)).blob(); download(blob, code + '.' + ((blob.type.split('/')[1] || 'png').replace('jpeg', 'jpg'))); await new Promise(r => setTimeout(r, 400)); }
+      catch (err) { toast('Gagal unduh ' + code); }
+    }
+    return true;
+  }
+  const sl = e.target.closest('[data-slide]');
+  if (sl && !e.target.closest('a')) { const code = sl.dataset.slide; slideSel.has(code) ? slideSel.delete(code) : slideSel.add(code); render(); return true; }
+  return false;
 }
 
 function renderResults(list) {
@@ -494,7 +610,8 @@ $('pull').onclick = async () => {
 };
 
 // ---- Event ----
-$('main').addEventListener('click', e => {
+$('main').addEventListener('click', async e => {
+  if (tab === 'post' && !e.target.closest('.vcard') && await onPostClick(e)) return;
   const vc = e.target.closest('.vcard');
   if (vc && !e.target.closest('a')) { openVideo(vc.dataset.vid); return; }
   if (e.target.matches('img[data-zoom]')) { const zc = e.target.closest('.card,.gcard'); const zcode = (zc && zc.querySelector('.code, .foot b') || {}).textContent || 'gambar'; zoomMeta = { id: e.target.dataset.driveId || null, name: zcode + (e.target.alt && e.target.alt !== zcode ? '_' + e.target.alt : '') }; $('zoomImg').src = e.target.src; $('zoom').style.display = 'flex'; const id = e.target.dataset.driveId; if (id) drive({ action:'image', id }).then(j => { $('zoomImg').src = `data:${j.mime};base64,${j.data}`; }).catch(() => {}); }
@@ -537,12 +654,14 @@ $('vzoom').onclick = e => { if (e.target.id === 'vzoom') $('vclose').click(); };
 $('tabs').onclick = e => { const b = e.target.closest('button'); if (!b) return; tab = b.dataset.f; [...$('tabs').children].forEach(x => x.classList.toggle('on', x === b)); render(); };
 $('q').oninput = render;
 $('refresh').onclick = () => { toast('Memuat ulang…', 1000); loadAll(); };
-$('openSettings').onclick = () => { const c = cfg(); $('sUrl').value = c.url; $('sPin').value = c.pin; $('sGpt').value = store.get('gpt', ''); $('sPrompt').value = c.prompt; $('settings').showModal(); };
+$('openSettings').onclick = () => { const c = cfg(); $('sUrl').value = c.url; $('sPin').value = c.pin; $('sGpt').value = store.get('gpt', ''); $('sPrompt').value = c.prompt; $('sAcc').value = c.acc; $('sTimes').value = c.times; $('sCapV').value = c.capV; $('sCapS').value = c.capS; $('settings').showModal(); };
 $('closeSettings').onclick = () => $('settings').close();
 $('resetPrompt').onclick = () => { $('sPrompt').value = DEFAULT_PROMPT; };
 $('saveSettings').onclick = () => {
   store.set('url', $('sUrl').value.trim()); store.set('pin', $('sPin').value);
   store.set('gpt', $('sGpt').value.trim());
+  store.set('acc', $('sAcc').value.trim()); store.set('times', $('sTimes').value.trim());
+  store.set('capV', $('sCapV').value.trim() === DEF_CAPV ? '' : $('sCapV').value); store.set('capS', $('sCapS').value.trim() === DEF_CAPS ? '' : $('sCapS').value);
   store.set('prompt', $('sPrompt').value.trim() === DEFAULT_PROMPT.trim() ? '' : $('sPrompt').value);
   $('settings').close(); toast('Tersimpan'); loadAll();
 };
