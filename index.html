@@ -325,6 +325,7 @@ function renderVideos() {
   const q = $('q').value.trim().toLowerCase();
   const gs = videoGroups.map(g => ({ ...g, d: parseFolderDate(g.folder) }))
     .filter(g => !q || g.folder.toLowerCase().includes(q) || g.files.some(f => f.name.toLowerCase().includes(q)))
+    .filter(g => !g.d || dayDiff(g.d) <= 1 || g.files.length > 0) // lusa dst: tampil hanya jika sudah ada isi
     .sort((a, b) => (b.d || 0) - (a.d || 0));
   if (!gs.length) { $('main').innerHTML = '<div class="empty">Belum ada folder video.</div>'; return; }
   $('main').innerHTML = gs.map(g => {
