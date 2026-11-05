@@ -84,6 +84,11 @@
   .toast.show { opacity:1; }
   .zoom { display:none; position:fixed; inset:0; background:rgba(0,0,0,.88); z-index:15; align-items:center; justify-content:center; }
   .zoom img { max-width:92vw; max-height:92vh; border-radius:12px; }
+  .steps.one { grid-template-columns:1fr; }
+  .btn.big { padding:12px; font-size:15px; }
+  .mini { display:flex; gap:6px; padding:8px 16px 0; }
+  .mini button { flex:1; background:none; border:1px solid var(--line); color:var(--muted); border-radius:8px; padding:6px; font-size:11.5px; cursor:pointer; }
+  .mini button:hover { color:var(--text); }
 </style>
 </head>
 <body>
@@ -220,7 +225,7 @@ function render() {
   ];
   $('nNew').textContent = newList.length; $('nSeen').textContent = seenList.length; $('nRes').textContent = results.length;
   const hints = {
-    new: 'Pesanan yang belum punya hasil. Kerjakan: Salin foto → Salin prompt → Buka ChatGPT → upload hasil ke Drive.',
+    new: 'Klik 🚀 Kirim ke ChatGPT → di ChatGPT tekan Ctrl+V lalu Enter → setelah jadi, upload hasilnya di kartu (Langkah 2).',
     seen: 'Foto mentah dan kode yang sudah pernah di-generate. Hasilnya ada di tab Hasil generate.',
     results: 'Semua hasil generate, dikelompokkan per folder tanggal di Google Drive.'
   };
@@ -249,16 +254,15 @@ function orderCard(o) {
       <div class="ph"><img src="${esc(raw(o.back))}" loading="lazy" data-zoom alt="belakang"><span>Belakang</span></div>
       ${r ? `<div class="ph res"><img src="${esc(resImg)}" loading="lazy" data-zoom alt="hasil" referrerpolicy="no-referrer"><span>Hasil</span></div>` : ''}
     </div>
-    <div class="steps">
-      <button class="btn primary" data-act="photo"><small>Langkah 1</small>Salin foto</button>
-      <button class="btn primary" data-act="prompt"><small>Langkah 2</small>Salin prompt</button>
-      <button class="btn" data-act="gpt"><small>Langkah 3</small>Buka ChatGPT ↗</button>
+    <div class="steps one">
+      <button class="btn primary big" data-act="send"><small>Langkah 1</small>🚀 Kirim ke ChatGPT</button>
     </div>
+    <div class="mini"><button data-act="photo">Salin foto saja</button><button data-act="prompt">Salin prompt saja</button><button data-act="gpt">Buka ChatGPT</button></div>
     ${r ? `<div class="result">
         ${r.src === 'drive' ? `<a class="btn drive" href="${esc(r.url)}" target="_blank" rel="noopener">Buka di Drive ↗</a>` : `<a class="btn" href="${esc(r.file)}" target="_blank" rel="noopener">Lihat hasil lama ↗</a>`}
         <button class="btn" data-act="upload">Upload hasil baru</button>
       </div>`
-      : `<div class="drop" data-act="upload"><b>Langkah 4</b> · Upload hasil ChatGPT ke Drive<br><span style="font-size:12px">klik, seret gambar ke sini, atau klik kartu lalu Ctrl+V</span></div>`}
+      : `<div class="drop" data-act="upload"><b>Langkah 2</b> · Upload hasil ChatGPT ke Drive<br><span style="font-size:12px">klik, seret gambar ke sini, atau klik kartu lalu Ctrl+V</span></div>`}
   </div>`;
 }
 
@@ -303,10 +307,23 @@ function download(blob, name) {
 }
 const promptFor = code => cfg().prompt.replaceAll('{CODE}', code).replaceAll('{SPELLED}', code.split('').join('-'));
 
+const blobCache = {};
+function getBlob(o) { return blobCache[o.message_id] || (blobCache[o.message_id] = combinedBlob(o).catch(e => { delete blobCache[o.message_id]; throw e; })); }
+function gptUrl(o) { const base = cfg().gpt; return base + (base.includes('?') ? '&' : '?') + 'prompt=' + encodeURIComponent(promptFor(o.code)); }
+
 async function act(kind, o) {
+  if (kind === 'send') {
+    try {
+      const blob = await getBlob(o);
+      await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]);
+    } catch (e) { toast('Gagal menyalin foto — coba tombol "Salin foto saja"', 4000); return; }
+    window.open(gptUrl(o), 'ornakuy_chatgpt');
+    toast('Foto tersalin & prompt sudah terisi. Di ChatGPT: tekan Ctrl+V lalu Enter', 6000);
+    return;
+  }
   if (kind === 'photo') {
     try {
-      const blob = await combinedBlob(o);
+      const blob = await getBlob(o);
       await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]);
       toast('Referensi + foto depan + belakang tersalin. Tempel (Ctrl+V) di ChatGPT');
     } catch (e) {
@@ -385,6 +402,11 @@ $('main').addEventListener('click', e => {
   activeId = o.message_id;
   document.querySelectorAll('.card.active').forEach(c => c.classList.remove('active')); cardEl.classList.add('active');
   const b = e.target.closest('[data-act]'); if (b) act(b.dataset.act, o);
+});
+$('main').addEventListener('mouseover', e => {
+  const c = e.target.closest('.card'); if (!c) return;
+  const o = orders.find(x => x.message_id === c.dataset.id);
+  if (o && !resultFor(o.code)) getBlob(o).catch(() => {});
 });
 $('main').addEventListener('dragover', e => { const d = e.target.closest('.drop'); if (d) { e.preventDefault(); d.classList.add('over'); } });
 $('main').addEventListener('dragleave', e => { const d = e.target.closest('.drop'); if (d) d.classList.remove('over'); });
