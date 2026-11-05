@@ -3,64 +3,273 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Ornakuy · Poster Dashboard</title>
+<title>Ornakuy · Dashboard Poster</title>
 <style>
-  :root { --bg:#0e0e10; --card:#18181b; --line:#2a2a2f; --text:#ececf1; --muted:#9a9aa3; --accent:#d9d9de; }
+  :root { --bg:#0d0d10; --card:#17171b; --card2:#1e1e24; --line:#2b2b33; --text:#ededf2; --muted:#9696a2; --chrome:#d9dae0; --ok:#3ecf8e; --warn:#f5b04c; --accent:#ff5fa2; }
   * { box-sizing:border-box; }
-  body { margin:0; font-family:Inter,system-ui,sans-serif; background:var(--bg); color:var(--text); }
-  header { padding:28px 32px 12px; display:flex; flex-wrap:wrap; gap:16px; align-items:end; justify-content:space-between; }
-  h1 { margin:0; font-size:22px; letter-spacing:.04em; }
-  h1 span { color:var(--muted); font-weight:500; }
-  .stats { color:var(--muted); font-size:14px; margin-top:4px; }
-  input { background:var(--card); border:1px solid var(--line); color:var(--text); padding:10px 14px; border-radius:10px; width:240px; font-size:14px; }
-  main { padding:16px 32px 48px; display:grid; grid-template-columns:repeat(auto-fill,minmax(220px,1fr)); gap:18px; }
-  .card { background:var(--card); border:1px solid var(--line); border-radius:14px; overflow:hidden; }
-  .card img { width:100%; aspect-ratio:2/3; object-fit:cover; display:block; cursor:zoom-in; background:#222; }
-  .meta { padding:12px 14px; display:flex; justify-content:space-between; align-items:center; gap:8px; }
-  .code { font-weight:800; letter-spacing:.06em; }
-  .sub { color:var(--muted); font-size:12px; }
-  a.dl { color:var(--accent); font-size:13px; text-decoration:none; border:1px solid var(--line); padding:6px 10px; border-radius:8px; }
-  .empty { color:var(--muted); padding:40px 32px; }
-  dialog { border:none; padding:0; background:transparent; max-width:92vw; }
-  dialog img { max-height:92vh; max-width:92vw; border-radius:12px; display:block; }
-  dialog::backdrop { background:rgba(0,0,0,.8); }
+  body { margin:0; font-family:Inter,system-ui,-apple-system,Segoe UI,sans-serif; background:var(--bg); color:var(--text); }
+  button, input, textarea { font:inherit; color:inherit; }
+  header { position:sticky; top:0; z-index:5; background:rgba(13,13,16,.92); backdrop-filter:blur(8px); border-bottom:1px solid var(--line); padding:16px 28px; display:flex; flex-wrap:wrap; gap:14px; align-items:center; justify-content:space-between; }
+  .brand { display:flex; align-items:baseline; gap:10px; }
+  .brand b { font-size:20px; letter-spacing:.12em; }
+  .brand span { color:var(--muted); font-size:14px; }
+  .stats { display:flex; gap:8px; flex-wrap:wrap; }
+  .pill { background:var(--card); border:1px solid var(--line); border-radius:999px; padding:6px 12px; font-size:13px; color:var(--muted); }
+  .pill b { color:var(--text); }
+  .controls { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+  .tabs { display:flex; background:var(--card); border:1px solid var(--line); border-radius:10px; padding:3px; }
+  .tabs button { background:none; border:0; padding:7px 12px; border-radius:7px; cursor:pointer; color:var(--muted); font-size:13px; }
+  .tabs button.on { background:var(--card2); color:var(--text); }
+  input[type=search] { background:var(--card); border:1px solid var(--line); padding:9px 12px; border-radius:10px; width:190px; font-size:13px; }
+  .iconbtn { background:var(--card); border:1px solid var(--line); border-radius:10px; padding:8px 12px; cursor:pointer; font-size:13px; }
+  .banner { margin:16px 28px 0; padding:12px 16px; border:1px solid #5a4520; background:#2a2111; color:#f3d39b; border-radius:12px; font-size:14px; display:none; }
+  main { padding:20px 28px 60px; display:grid; grid-template-columns:repeat(auto-fill,minmax(330px,1fr)); gap:18px; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:16px; overflow:hidden; display:flex; flex-direction:column; outline:none; }
+  .card.active { border-color:#6b6b78; box-shadow:0 0 0 1px #6b6b78; }
+  .card.done { border-color:#245c43; }
+  .top { display:flex; justify-content:space-between; align-items:center; padding:14px 16px 10px; }
+  .code { font-weight:900; font-size:22px; letter-spacing:.08em; }
+  .meta { color:var(--muted); font-size:12px; margin-top:2px; }
+  .badge { font-size:12px; padding:4px 10px; border-radius:999px; border:1px solid var(--line); color:var(--warn); white-space:nowrap; }
+  .badge.ok { color:var(--ok); border-color:#245c43; }
+  .photos { display:grid; grid-template-columns:1fr 1fr; gap:6px; padding:0 16px; }
+  .ph { position:relative; background:#26262d; border-radius:10px; overflow:hidden; aspect-ratio:3/4; }
+  .ph img { width:100%; height:100%; object-fit:cover; display:block; }
+  .ph span { position:absolute; left:6px; top:6px; font-size:11px; background:rgba(0,0,0,.6); padding:2px 7px; border-radius:6px; }
+  .steps { padding:12px 16px 0; display:grid; grid-template-columns:1fr 1fr 1fr; gap:6px; }
+  .btn { background:var(--card2); border:1px solid var(--line); border-radius:10px; padding:9px 6px; cursor:pointer; font-size:12.5px; text-align:center; }
+  .btn:hover { border-color:#55555f; }
+  .btn.primary { background:var(--chrome); color:#111; border-color:var(--chrome); font-weight:600; }
+  .btn small { display:block; color:var(--muted); font-size:10.5px; margin-bottom:2px; }
+  .btn.primary small { color:#444; }
+  .drop { margin:10px 16px 16px; border:1.5px dashed #3a3a44; border-radius:12px; padding:14px; text-align:center; font-size:13px; color:var(--muted); cursor:pointer; transition:.15s; }
+  .drop:hover, .drop.over { border-color:var(--chrome); color:var(--text); background:#1c1c22; }
+  .drop.busy { color:var(--warn); }
+  .drop a { color:var(--ok); }
+  .result { display:flex; gap:10px; align-items:center; margin:10px 16px 16px; padding:10px; background:#11241b; border:1px solid #245c43; border-radius:12px; font-size:13px; }
+  .result a { color:var(--ok); }
+  .result button { margin-left:auto; background:none; border:1px solid #245c43; color:var(--muted); border-radius:8px; padding:5px 8px; cursor:pointer; font-size:12px; }
+  .empty { color:var(--muted); padding:40px 0; grid-column:1/-1; text-align:center; }
+  dialog { background:var(--card); color:var(--text); border:1px solid var(--line); border-radius:16px; width:min(640px,94vw); padding:22px; }
+  dialog::backdrop { background:rgba(0,0,0,.7); }
+  dialog h2 { margin:0 0 4px; font-size:18px; }
+  dialog p { color:var(--muted); font-size:13px; margin:0 0 16px; }
+  label { display:block; font-size:12px; color:var(--muted); margin:12px 0 5px; }
+  dialog input, dialog textarea { width:100%; background:var(--bg); border:1px solid var(--line); border-radius:10px; padding:10px; font-size:13px; }
+  dialog textarea { min-height:190px; font-family:ui-monospace,Consolas,monospace; font-size:12px; }
+  .row { display:flex; gap:8px; justify-content:flex-end; margin-top:16px; }
+  .toast { position:fixed; bottom:22px; left:50%; transform:translateX(-50%); background:#26262e; border:1px solid var(--line); padding:11px 18px; border-radius:12px; font-size:14px; opacity:0; transition:.2s; pointer-events:none; z-index:20; }
+  .toast.show { opacity:1; }
+  .zoom { display:none; position:fixed; inset:0; background:rgba(0,0,0,.85); z-index:15; align-items:center; justify-content:center; }
+  .zoom img { max-width:92vw; max-height:92vh; border-radius:12px; }
 </style>
 </head>
 <body>
 <header>
-  <div>
-    <h1>ORNAKUY <span>· Poster Dashboard</span></h1>
-    <div class="stats" id="stats">Memuat…</div>
+  <div class="brand"><b>ORNAKUY</b><span>Dashboard Poster</span></div>
+  <div class="stats" id="stats"></div>
+  <div class="controls">
+    <div class="tabs" id="tabs">
+      <button data-f="todo" class="on">Belum</button>
+      <button data-f="done">Selesai</button>
+      <button data-f="all">Semua</button>
+    </div>
+    <input type="search" id="q" placeholder="Cari kode…" autocomplete="off">
+    <button class="iconbtn" id="refresh" title="Muat ulang">↻</button>
+    <button class="iconbtn" id="openSettings">⚙ Pengaturan</button>
   </div>
-  <input id="q" placeholder="Cari kode, mis. F3E7D7" autocomplete="off">
 </header>
-<main id="grid"></main>
-<dialog id="dlg"><img id="big" alt=""></dialog>
+<div class="banner" id="banner">Drive belum tersambung. Buka <b>⚙ Pengaturan</b> lalu isi URL Apps Script dan PIN supaya hasil bisa tersimpan ke Google Drive.</div>
+<main id="grid"><div class="empty">Memuat pesanan…</div></main>
+
+<dialog id="settings">
+  <h2>Pengaturan</h2>
+  <p>Disimpan di browser ini saja.</p>
+  <label>URL Apps Script (Web app URL)</label>
+  <input id="sUrl" placeholder="https://script.google.com/macros/s/…/exec">
+  <label>PIN Drive (sama dengan PIN di Apps Script)</label>
+  <input id="sPin" type="password">
+  <label>Link ChatGPT (Project kamu, atau biarkan chatgpt.com)</label>
+  <input id="sGpt" placeholder="https://chatgpt.com/">
+  <label>Prompt — {CODE} dan {SPELLED} otomatis diganti</label>
+  <textarea id="sPrompt"></textarea>
+  <div class="row">
+    <button class="iconbtn" id="resetPrompt">Prompt bawaan</button>
+    <button class="iconbtn" id="closeSettings">Batal</button>
+    <button class="btn primary" id="saveSettings" style="padding:9px 16px">Simpan</button>
+  </div>
+</dialog>
+<div class="zoom" id="zoom"><img id="zoomImg" alt=""></div>
+<div class="toast" id="toast"></div>
+
 <script>
-let items = [];
-const grid = document.getElementById('grid');
-function fmt(t){ try { return new Date(t).toLocaleString('id-ID',{dateStyle:'medium',timeStyle:'short'}); } catch(e){ return ''; } }
-function render(){
-  const q = document.getElementById('q').value.trim().toUpperCase();
-  const list = items.filter(x => !q || x.code.includes(q));
-  document.getElementById('stats').textContent = `${items.length} poster · ${list.length} ditampilkan`;
-  if (!list.length) { grid.innerHTML = '<div class="empty">Belum ada poster.</div>'; return; }
-  grid.innerHTML = list.map(x => `
-    <div class="card">
-      <img src="${x.file}" loading="lazy" alt="CODE ${x.code}" data-src="${x.file}">
-      <div class="meta">
-        <div><div class="code">${x.code}</div><div class="sub">${x.author || ''} · ${fmt(x.time)}</div></div>
-        <a class="dl" href="${x.file}" download="${x.code}.png">Unduh</a>
-      </div>
-    </div>`).join('');
+const DEFAULT_PROMPT = `The attached image shows ONE Roblox avatar outfit: LEFT half = FRONT view, RIGHT half = BACK view.
+
+Create a vertical 2:3 promotional poster:
+- Background: light grey studio with big glossy liquid silver chrome swirls on both sides, glossy reflective mirror floor, bright soft studio lighting, ultra-detailed high-end 3D render with crisp fabric textures.
+- Show the avatar twice side by side: FRONT view on the left, BACK view on the right. The figures are LARGE and fill the poster from just below the title down to near the bottom edge, slightly low camera angle so the shoes look big in the foreground.
+- At the top center: a small four-point star, the word "CODE" with a thin line on each side, below it the code "{CODE}" in very large heavy black sans-serif, then a small four-point star with a thin line on each side. Spell the code exactly: {SPELLED}. No other text.
+- STRICT: keep the outfit EXACTLY as in the photo — same colors and shades, prints, graphics, patterns, rips and cut-outs, hood, belt, accessories, shoes, hair and skin tone. Do not recolor, simplify or redesign anything.`;
+
+const store = {
+  get(k, d) { try { const v = localStorage.getItem('ornakuy_' + k); return v === null ? d : v; } catch (e) { return d; } },
+  set(k, v) { try { localStorage.setItem('ornakuy_' + k, v); } catch (e) {} }
+};
+const cfg = () => ({ url: store.get('url', '').trim(), pin: store.get('pin', ''), gpt: store.get('gpt', '') || 'https://chatgpt.com/', prompt: store.get('prompt', '') || DEFAULT_PROMPT });
+
+let orders = [], done = {}, todayName = '', filter = 'todo', activeCode = null;
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+function toast(msg, ms = 2200) { const t = $('toast'); t.textContent = msg; t.classList.add('show'); clearTimeout(t._h); t._h = setTimeout(() => t.classList.remove('show'), ms); }
+function fmt(t) { try { return new Date(t).toLocaleString('id-ID', { day:'numeric', month:'short', hour:'2-digit', minute:'2-digit' }); } catch (e) { return ''; } }
+
+async function drive(body) {
+  const c = cfg();
+  if (!c.url || !c.pin) throw new Error('Drive belum diatur');
+  const r = await fetch(c.url, { method:'POST', headers:{ 'Content-Type':'text/plain;charset=utf-8' }, body: JSON.stringify({ key: c.pin, ...body }) });
+  const j = await r.json();
+  if (!j.ok) throw new Error(j.error || 'Gagal');
+  return j;
 }
-grid.addEventListener('click', e => {
-  if (e.target.tagName === 'IMG') { document.getElementById('big').src = e.target.dataset.src; document.getElementById('dlg').showModal(); }
+
+async function loadAll() {
+  try {
+    orders = await (await fetch('orders.json?' + Date.now())).json();
+  } catch (e) { orders = []; }
+  const c = cfg();
+  $('banner').style.display = (c.url && c.pin) ? 'none' : 'block';
+  if (c.url && c.pin) {
+    try { const j = await drive({ action:'list' }); done = j.done || {}; todayName = j.today || ''; }
+    catch (e) { toast('Drive: ' + e.message, 3500); }
+  }
+  render();
+}
+
+function render() {
+  const q = $('q').value.trim().toUpperCase();
+  const isDone = o => !!done[o.code];
+  const todayCount = Object.values(done).filter(d => d.folder === todayName).length;
+  $('stats').innerHTML =
+    `<span class="pill">Belum <b>${orders.filter(o => !isDone(o)).length}</b></span>` +
+    `<span class="pill">Selesai <b>${orders.filter(isDone).length}</b></span>` +
+    (todayName ? `<span class="pill">Drive ${esc(todayName)}: <b>${todayCount}</b></span>` : '');
+  const list = orders.filter(o => (filter === 'all' || (filter === 'done') === isDone(o)) && (!q || o.code.includes(q)));
+  if (!list.length) { $('grid').innerHTML = `<div class="empty">${filter === 'todo' ? 'Semua pesanan sudah selesai 🎉' : 'Tidak ada pesanan.'}</div>`; return; }
+  $('grid').innerHTML = list.map(o => {
+    const d = done[o.code];
+    return `
+    <div class="card ${d ? 'done' : ''} ${activeCode === o.code ? 'active' : ''}" data-code="${esc(o.code)}" tabindex="0">
+      <div class="top">
+        <div><div class="code">${esc(o.code)}</div><div class="meta">${esc(o.author)} · ${fmt(o.time)}</div></div>
+        <span class="badge ${d ? 'ok' : ''}">${d ? '✓ Selesai' : 'Belum'}</span>
+      </div>
+      <div class="photos">
+        <div class="ph"><img src="${esc(o.front)}" loading="lazy" data-zoom alt="depan"><span>Depan</span></div>
+        <div class="ph"><img src="${esc(o.back)}" loading="lazy" data-zoom alt="belakang"><span>Belakang</span></div>
+      </div>
+      <div class="steps">
+        <button class="btn primary" data-act="photo"><small>Langkah 1</small>Salin foto</button>
+        <button class="btn primary" data-act="prompt"><small>Langkah 2</small>Salin prompt</button>
+        <button class="btn" data-act="gpt"><small>Langkah 3</small>Buka ChatGPT ↗</button>
+      </div>
+      ${d ? `<div class="result">✓ Tersimpan di <a href="${esc(d.url)}" target="_blank" rel="noopener">Drive · ${esc(d.folder)}</a><button data-act="redo">Ganti</button></div>`
+          : `<div class="drop" data-act="upload"><b>Langkah 4</b> · Upload hasil ChatGPT ke Drive<br><span style="font-size:12px">klik, seret gambar ke sini, atau pilih kartu lalu Ctrl+V</span></div>`}
+    </div>`;
+  }).join('');
+}
+
+function loadImg(src) {
+  return new Promise((res, rej) => { const i = new Image(); i.onload = () => res(i); i.onerror = rej; i.src = src; });
+}
+async function combinedBlob(o) {
+  const [a, b] = await Promise.all([loadImg(o.front), loadImg(o.back)]);
+  const H = Math.max(a.naturalHeight, b.naturalHeight), gap = 24;
+  const wa = a.naturalWidth * H / a.naturalHeight, wb = b.naturalWidth * H / b.naturalHeight;
+  const c = document.createElement('canvas'); c.width = Math.round(wa + wb + gap); c.height = H;
+  const x = c.getContext('2d'); x.fillStyle = '#fff'; x.fillRect(0, 0, c.width, c.height);
+  x.drawImage(a, 0, 0, wa, H); x.drawImage(b, wa + gap, 0, wb, H);
+  return new Promise(r => c.toBlob(r, 'image/png'));
+}
+function download(blob, name) {
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name; a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+}
+const promptFor = code => cfg().prompt.replaceAll('{CODE}', code).replaceAll('{SPELLED}', code.split('').join('-'));
+
+async function act(kind, o, cardEl) {
+  if (kind === 'photo') {
+    try {
+      const blob = await combinedBlob(o);
+      await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]);
+      toast('Foto depan+belakang tersalin. Tempel (Ctrl+V) di ChatGPT');
+    } catch (e) {
+      try { download(await combinedBlob(o), o.code + '_depan-belakang.png'); toast('Foto diunduh — seret ke ChatGPT'); }
+      catch (e2) { toast('Gagal menyiapkan foto'); }
+    }
+  } else if (kind === 'prompt') {
+    try { await navigator.clipboard.writeText(promptFor(o.code)); toast('Prompt ' + o.code + ' tersalin. Tempel (Ctrl+V) di ChatGPT'); }
+    catch (e) { toast('Gagal menyalin prompt'); }
+  } else if (kind === 'gpt') {
+    window.open(cfg().gpt, 'ornakuy_chatgpt');
+  } else if (kind === 'upload' || kind === 'redo') {
+    const inp = document.createElement('input'); inp.type = 'file'; inp.accept = 'image/*';
+    inp.onchange = () => inp.files[0] && upload(o, inp.files[0]);
+    inp.click();
+  }
+}
+
+async function upload(o, file) {
+  if (!file || !file.type.startsWith('image/')) { toast('Itu bukan gambar'); return; }
+  const c = cfg();
+  if (!c.url || !c.pin) { toast('Atur Drive dulu di ⚙ Pengaturan', 3000); $('openSettings').click(); return; }
+  const card = document.querySelector(`.card[data-code="${o.code}"] .drop`);
+  if (card) { card.classList.add('busy'); card.textContent = 'Mengupload ke Drive…'; }
+  try {
+    const data = await new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(String(r.result).split(',')[1]); r.onerror = rej; r.readAsDataURL(file); });
+    const j = await drive({ action:'upload', code:o.code, mime:file.type, data });
+    done[o.code] = { url:j.url, folder:j.folder, t:Date.now() }; todayName = j.folder;
+    toast(`✓ ${o.code} tersimpan di Drive · ${j.folder}`, 3000);
+    render();
+  } catch (e) {
+    toast('Upload gagal: ' + e.message, 4000); render();
+  }
+}
+
+$('grid').addEventListener('click', e => {
+  const cardEl = e.target.closest('.card'); if (!cardEl) return;
+  const o = orders.find(x => x.code === cardEl.dataset.code);
+  activeCode = o.code;
+  document.querySelectorAll('.card.active').forEach(c => c.classList.remove('active')); cardEl.classList.add('active');
+  if (e.target.matches('img[data-zoom]')) { $('zoomImg').src = e.target.src; $('zoom').style.display = 'flex'; return; }
+  const b = e.target.closest('[data-act]'); if (b) act(b.dataset.act, o, cardEl);
 });
-document.getElementById('dlg').addEventListener('click', e => e.currentTarget.close());
-document.getElementById('q').addEventListener('input', render);
-fetch('data.json?' + Date.now()).then(r => r.json()).then(d => { items = d; render(); })
-  .catch(() => { grid.innerHTML = '<div class="empty">Belum ada data.</div>'; document.getElementById('stats').textContent=''; });
+$('grid').addEventListener('dragover', e => { const d = e.target.closest('.drop'); if (d) { e.preventDefault(); d.classList.add('over'); } });
+$('grid').addEventListener('dragleave', e => { const d = e.target.closest('.drop'); if (d) d.classList.remove('over'); });
+$('grid').addEventListener('drop', e => {
+  const d = e.target.closest('.drop'); if (!d) return; e.preventDefault();
+  const o = orders.find(x => x.code === d.closest('.card').dataset.code);
+  upload(o, e.dataTransfer.files[0]);
+});
+document.addEventListener('paste', e => {
+  if (!activeCode || e.target.closest('dialog')) return;
+  const f = [...(e.clipboardData?.files || [])].find(f => f.type.startsWith('image/'));
+  if (f) { e.preventDefault(); upload(orders.find(x => x.code === activeCode), f); }
+});
+$('zoom').onclick = () => $('zoom').style.display = 'none';
+$('tabs').onclick = e => { const b = e.target.closest('button'); if (!b) return; filter = b.dataset.f; [...$('tabs').children].forEach(x => x.classList.toggle('on', x === b)); render(); };
+$('q').oninput = render;
+$('refresh').onclick = () => { toast('Memuat ulang…', 1000); loadAll(); };
+$('openSettings').onclick = () => { const c = cfg(); $('sUrl').value = c.url; $('sPin').value = c.pin; $('sGpt').value = store.get('gpt', ''); $('sPrompt').value = c.prompt; $('settings').showModal(); };
+$('closeSettings').onclick = () => $('settings').close();
+$('resetPrompt').onclick = () => { $('sPrompt').value = DEFAULT_PROMPT; };
+$('saveSettings').onclick = () => {
+  store.set('url', $('sUrl').value.trim()); store.set('pin', $('sPin').value);
+  store.set('gpt', $('sGpt').value.trim());
+  store.set('prompt', $('sPrompt').value.trim() === DEFAULT_PROMPT.trim() ? '' : $('sPrompt').value);
+  $('settings').close(); toast('Tersimpan'); loadAll();
+};
+loadAll();
+setInterval(loadAll, 120000);
 </script>
 </body>
 </html>
