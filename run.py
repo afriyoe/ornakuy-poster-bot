@@ -44,15 +44,16 @@ CODE_RE = re.compile(r"\b([A-Z0-9]{6})\b")
 IMG_EXT = (".png", ".jpg", ".jpeg", ".webp")
 
 BASE_PROMPT = """Image 1 = FRONT view and Image 2 = BACK view of the same Roblox avatar outfit (the product).
-Image 3 = STYLE REFERENCE ONLY (background, lighting, layout, typography).
+Image 3 = STYLE AND COMPOSITION REFERENCE ONLY.
 
-Create a vertical 2:3 promotional poster in the exact style of Image 3:
-- Liquid silver chrome swirl background on a light grey studio backdrop, glossy reflective dark floor, soft studio lighting, high detail render.
-- The avatar from Images 1 and 2 shown twice side by side: FRONT view on the left, BACK view on the right, full body head to shoes, same size, standing on the floor with reflections.
-- STRICT OUTFIT LOCK: reproduce the outfit EXACTLY as in Images 1 and 2 — identical colors, color shades, patterns, graphics, rips, cut-outs, shapes, layers, accessories, shoes, hair and skin tone. Do not recolor, simplify, redesign or add anything.
-- NEVER use the character, outfit, hair or colors of Image 3. Only copy its style.
+Create a vertical 2:3 promotional poster that matches Image 3 in style AND composition:
+- Background: light grey studio backdrop with big glossy liquid silver chrome swirls/tubes filling the left and right sides, glossy reflective dark mirror floor with crisp reflections, bright soft studio lighting.
+- Composition: FRONT view on the left, BACK view on the right, standing side by side close together. The two figures are LARGE and dominate the poster: each figure is about 75-80% of the poster height, heads start just below the title area (about 17% from the top), feet/shoes reach close to the bottom edge (about 93% from the top). Slightly low camera angle, figures close to the camera, so the shoes look big in the foreground. No empty space around the figures.
+- Render quality: ultra-detailed high-end 3D render, sharp focus, crisp fabric textures (cotton, denim, leather), clean edges, rich but accurate colors.
+- STRICT OUTFIT LOCK: reproduce the outfit EXACTLY as in Images 1 and 2 - identical colors and shades, prints, graphics, text on clothing, splatter/crack patterns, rips and cut-outs, hood shape and details, belt, layers, accessories, shoes, hair and skin tone. If part of the outfit is cut off in Images 1/2, continue it consistently with what is visible. Do not recolor, simplify, redesign or add anything new.
+- NEVER use the character, outfit, hair or colors of Image 3. Only copy its style and layout.
 """
-PROMPT_SCRIPT_TEXT = BASE_PROMPT + """- Keep the top 22% of the poster as clean light background with no objects (a title will be added later).
+PROMPT_SCRIPT_TEXT = BASE_PROMPT + """- Keep only the top 16% of the poster (above the heads) as clean light background with no objects; a title will be added there later.
 - Do NOT write any text, letters, numbers or logos anywhere.
 """
 PROMPT_AI_TEXT = BASE_PROMPT + """- At the top center, exactly like Image 3: a small four-point star, the word "CODE" in small heavy black sans-serif, below it the code "{code}" in very large heavy black sans-serif, then a small four-point star.
@@ -139,14 +140,26 @@ def add_code_text(img, code):
     W, H = img.size
     s = W / 1024
     d = ImageDraw.Draw(img)
-    ink = (24, 24, 28)
-    f_small = ImageFont.truetype(str(FONT), int(40 * s))
-    f_big = ImageFont.truetype(str(FONT), int(104 * s))
+    ink = (20, 20, 24)
+    f_small = ImageFont.truetype(str(FONT), int(34 * s))
+    f_big = ImageFont.truetype(str(FONT), int(84 * s))
     cx = W // 2
-    star(d, cx, 70 * s, 38 * s, ink)
-    d.text((cx, 150 * s), "CODE", font=f_small, fill=ink, anchor="mm")
-    d.text((cx, 232 * s), code, font=f_big, fill=ink, anchor="mm")
-    star(d, cx, 305 * s, 24 * s, ink)
+    lw = max(2, int(2 * s))
+    # bintang atas
+    star(d, cx, 66 * s, 40 * s, ink)
+    # "CODE" dengan garis kiri-kanan
+    d.text((cx, 130 * s), "CODE", font=f_small, fill=ink, anchor="mm")
+    cw = d.textlength("CODE", font=f_small)
+    gap = 14 * s
+    d.line([cx - cw / 2 - gap - 55 * s, 130 * s, cx - cw / 2 - gap, 130 * s], fill=ink, width=lw)
+    d.line([cx + cw / 2 + gap, 130 * s, cx + cw / 2 + gap + 55 * s, 130 * s], fill=ink, width=lw)
+    # kode besar
+    d.text((cx, 192 * s), code, font=f_big, fill=ink, anchor="mm")
+    # bintang bawah dengan garis
+    by = 243 * s
+    d.line([cx - 118 * s, by, cx - 26 * s, by], fill=ink, width=lw)
+    d.line([cx + 26 * s, by, cx + 118 * s, by], fill=ink, width=lw)
+    star(d, cx, by, 24 * s, ink)
     return img
 
 
