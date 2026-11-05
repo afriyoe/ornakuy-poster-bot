@@ -221,7 +221,7 @@ function render() {
   $('nNew').textContent = newList.length; $('nSeen').textContent = seenList.length; $('nRes').textContent = results.length;
   const hints = {
     new: 'Pesanan yang belum punya hasil. Kerjakan: Salin foto → Salin prompt → Buka ChatGPT → upload hasil ke Drive.',
-    seen: 'Kode yang sudah pernah punya hasil generate. Tetap ditampilkan supaya bisa dicek atau di-generate ulang.',
+    seen: 'Foto mentah dan kode yang sudah pernah di-generate. Hasilnya ada di tab Hasil generate.',
     results: 'Semua hasil generate, dikelompokkan per folder tanggal di Google Drive.'
   };
   $('hint').textContent = hints[tab];
@@ -233,6 +233,7 @@ function render() {
 
 function orderCard(o) {
   const r = resultFor(o.code);
+  if (r) return `<div class="card" data-id="${esc(o.message_id)}"><div class="top"><div class="code">${esc(o.code)}</div></div><div class="photos" style="padding-bottom:16px"><div class="ph"><img src="${esc(raw(o.front))}" loading="lazy" data-zoom alt="depan"><span>Depan</span></div><div class="ph"><img src="${esc(raw(o.back))}" loading="lazy" data-zoom alt="belakang"><span>Belakang</span></div></div></div>`;
   const resImg = r ? (r.src === 'drive' ? thumb(r.id) : r.file) : '';
   return `
   <div class="card ${r ? 'done' : ''} ${activeId === o.message_id ? 'active' : ''}" data-id="${esc(o.message_id)}">
