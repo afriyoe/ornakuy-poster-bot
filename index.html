@@ -230,7 +230,7 @@ function render() {
     results: 'Semua hasil generate, dikelompokkan per folder tanggal di Google Drive.'
   };
   $('hint').textContent = hints[tab];
-  if (tab === 'results') return renderResults(results.filter(r => match(r.code)));
+  if (tab === 'results') { renderResults(results.filter(r => match(r.code))); return hydrateDrive(); }
   const list = (tab === 'new' ? newList : seenList).filter(o => match(o.code));
   if (!list.length) { $('main').innerHTML = `<div class="empty">${tab === 'new' ? 'Tidak ada pesanan baru. Tekan ⬇ Tarik dari Discord untuk cek.' : 'Belum ada.'}</div>`; return; }
   $('main').innerHTML = `<div class="grid">${list.map(orderCard).join('')}</div>`;
@@ -266,6 +266,21 @@ function orderCard(o) {
   </div>`;
 }
 
+const BLANK = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';
+const thumbCache = {};
+function hydrateDrive() {
+  document.querySelectorAll('img[data-drive-id]').forEach(im => {
+    const id = im.dataset.driveId;
+    if (thumbCache[id]) { im.src = thumbCache[id]; return; }
+    if (thumbCache[id] === null) return;
+    thumbCache[id] = null;
+    drive({ action:'thumb', id }).then(j => {
+      thumbCache[id] = `data:${j.mime};base64,${j.data}`;
+      document.querySelectorAll(`img[data-drive-id="${id}"]`).forEach(x => x.src = thumbCache[id]);
+    }).catch(() => { delete thumbCache[id]; });
+  });
+}
+
 function renderResults(list) {
   if (!list.length) { $('main').innerHTML = '<div class="empty">Belum ada hasil generate di Drive.</div>'; return; }
   const groups = {};
@@ -277,7 +292,7 @@ function renderResults(list) {
       ${fUrl ? `<a class="btn drive" href="${esc(fUrl)}" target="_blank" rel="noopener">Buka folder Drive ↗</a>` : ''}</div>
       <div class="gal">${g.map(r => `
         <div class="gcard">
-          <div class="img"><img src="${esc(r.src === 'drive' ? thumb(r.id) : r.file)}" loading="lazy" data-zoom alt="${esc(r.code)}" referrerpolicy="no-referrer"></div>
+          <div class="img"><img src="${r.src === 'drive' ? BLANK : esc(r.file)}" ${r.src === 'drive' ? `data-drive-id="${esc(r.id)}"` : ''} data-zoom alt="${esc(r.code)}"></div>
           <div class="foot"><b>${esc(r.code)}</b>
             ${r.src === 'drive' ? `<a class="btn drive" href="${esc(r.url)}" target="_blank" rel="noopener">Drive ↗</a>` : `<a class="btn" href="${esc(r.file)}" download>Unduh</a>`}
           </div>
@@ -402,7 +417,7 @@ $('pull').onclick = async () => {
 
 // ---- Event ----
 $('main').addEventListener('click', e => {
-  if (e.target.matches('img[data-zoom]')) { $('zoomImg').src = e.target.src; $('zoom').style.display = 'flex'; }
+  if (e.target.matches('img[data-zoom]')) { $('zoomImg').src = e.target.src; $('zoom').style.display = 'flex'; const id = e.target.dataset.driveId; if (id) drive({ action:'image', id }).then(j => { $('zoomImg').src = `data:${j.mime};base64,${j.data}`; }).catch(() => {}); }
   const cardEl = e.target.closest('.card'); if (!cardEl) return;
   const o = orders.find(x => x.message_id === cardEl.dataset.id); if (!o) return;
   activeId = o.message_id;
