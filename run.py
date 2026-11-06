@@ -77,7 +77,17 @@ def parse_order(msg):
 def save_img(url, path):
     r = requests.get(url, timeout=60)
     r.raise_for_status()
-    Image.open(io.BytesIO(r.content)).convert("RGB").save(path, "PNG", optimize=True)
+    img = Image.open(io.BytesIO(r.content)).convert("RGB")
+    path = Path(path)
+    # screenshot full screen (landscape) -> simpan asli + crop ke avatar
+    if img.width > img.height:
+        img.save(path.with_name(path.stem + "_raw.png"), "PNG", optimize=True)
+        try:
+            from autocrop import crop_image
+            img = crop_image(img)
+        except Exception as e:
+            print("crop gagal, pakai asli:", e)
+    img.save(path, "PNG", optimize=True)
 
 
 def main():
