@@ -209,8 +209,8 @@ const store = {
   get(k, d) { try { const v = localStorage.getItem('ornakuy_' + k); return v === null ? d : v; } catch (e) { return d; } },
   set(k, v) { try { localStorage.setItem('ornakuy_' + k, v); } catch (e) {} }
 };
-const DEF_CAPV = 'Outfit Roblox kece dari Ornakuy 🔥 Cek & pakai sekarang di Roblox!\n\n#roblox #robloxoutfit #robloxfashion #ornakuy #fyp';
-const DEF_CAPS = 'Outfit baru Ornakuy 🖤 Kode: {KODE}\nSimpan & cobain di Roblox!\n\n#roblox #robloxoutfit #robloxcode #ornakuy #fyp';
+const DEF_CAPV = 'Outfit Roblox Streetwear 3d Unique\ncommunity store: ORNA KUY\noutfit idea avatar cowok cewek y2k ugc kalcer couple zepeto starboy luna\n#avaroblox #roblox #robloxoutfits #robloxavatar';
+const DEF_CAPS = DEF_CAPV;
 const cfg = () => ({ url: store.get('url', '').trim(), pin: store.get('pin', ''), gpt: store.get('gpt', '') || 'https://chatgpt.com/', prompt: store.get('prompt', '') || DEFAULT_PROMPT,
   acc: store.get('acc', '') || 'TikTok 1, TikTok 2, Instagram', times: store.get('times', '') || '12:00, 17:00, 20:00', capV: store.get('capV', '') || DEF_CAPV, capS: store.get('capS', '') || DEF_CAPS });
 
@@ -285,7 +285,7 @@ function render() {
     seen: 'Foto mentah dan kode yang sudah pernah di-generate. Hasilnya ada di tab Hasil generate.',
     results: 'Semua hasil generate, dikelompokkan per folder tanggal di Google Drive.',
     videos: 'Video konten tim per folder tanggal tayang (angka di tab = video untuk besok). Klik video untuk preview.',
-    post: 'Checklist posting: download + salin caption, jadwalkan di TikTok Studio / Meta Business Suite / cloud phone, lalu klik nama akun untuk ubah status (belum → ⏰ terjadwal → ✓ terposting).'
+    post: 'Checklist posting: download + salin caption, jadwalkan di TikTok Studio / Instagram / cloud phone, lalu klik nama akun untuk ubah status (belum → ⏰ terjadwal → ✓ terposting).'
   };
   $('hint').textContent = hints[tab];
   if (tab === 'post') { renderPost(); return hydrateDrive(); }
@@ -384,7 +384,7 @@ function openVideo(id) {
 
 const POST_LINKS = [
   ['TikTok Studio', 'https://www.tiktok.com/tiktokstudio/upload'],
-  ['Meta Business Suite', 'https://business.facebook.com/latest/content_calendar'],
+  ['Posting Reels IG', 'https://www.instagram.com/'],
   ['VSPhone', 'https://cloud.vsphone.com/'],
   ['VMOS Cloud', 'https://cloud.vmoscloud.com/']
 ];
