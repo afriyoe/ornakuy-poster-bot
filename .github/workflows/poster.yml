@@ -24,7 +24,7 @@ jobs:
           python-version: "3.12"
 
       - name: Install
-        run: pip install requests pillow
+        run: pip install requests pillow numpy scipy
 
       - name: Tarik pesanan
         env:
