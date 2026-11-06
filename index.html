@@ -97,6 +97,28 @@
   .when { color:var(--info); font-weight:600; }
   .day.tomorrow h3 .when { color:var(--ok); }
   .vbox { width:min(460px,92vw); display:flex; flex-direction:column; gap:10px; }
+  .dlall { display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin:0 0 6px; }
+  .dlall .btn { padding:9px 14px; }
+  .dlall .muted { color:var(--muted); font-size:12.5px; }
+  .gcard { position:relative; }
+  .gcard.got .img::after { content:'✓ diunduh'; position:absolute; top:8px; left:8px; background:rgba(16,120,70,.9); color:#fff; font-size:11px; font-weight:600; padding:3px 7px; border-radius:999px; pointer-events:none; }
+  .gcard .img { position:relative; }
+  .gcard .foot .icbtn { width:30px; height:30px; background:var(--card2); color:var(--text); border:1px solid var(--line); }
+  .gcard .foot .icbtn.got { color:var(--ok); border-color:var(--ok); }
+  @media (max-width:640px) {
+    main { padding:12px 12px 60px; }
+    .hint { margin:12px 12px 0; }
+    .tabs { overflow-x:auto; flex-wrap:nowrap; max-width:100%; }
+    .tabs button { white-space:nowrap; flex:0 0 auto; }
+    .grid { grid-template-columns:1fr; }
+    .gal { grid-template-columns:1fr 1fr; gap:8px; }
+    .gcard { border-radius:10px; }
+    .gcard .foot { padding:7px 8px; }
+    .gcard .foot b { font-size:12px; letter-spacing:.03em; }
+    .gcard .foot .btn { padding:4px 7px; font-size:11px; }
+    .day { flex-wrap:wrap; gap:8px; margin:20px 0 10px; }
+    .day h3 { font-size:15px; }
+  }
   .vbox iframe { width:100%; aspect-ratio:9/16; max-height:82vh; border:0; border-radius:12px; background:#000; }
   .vbar { display:flex; gap:8px; justify-content:center; }
   .vbar .btn { padding:9px 16px; }
@@ -469,15 +491,21 @@ function renderResults(list) {
   const groups = {};
   list.forEach(r => { (groups[r.folder] = groups[r.folder] || []).push(r); });
   const keys = Object.keys(groups).sort((a, b) => Math.max(...groups[b].map(x => x.t || 0)) - Math.max(...groups[a].map(x => x.t || 0)));
-  $('main').innerHTML = keys.map(k => {
+  const driveAll = list.filter(r => r.src === 'drive');
+  const left = driveAll.filter(r => !gotDl(r.id)).length;
+  const bar = driveAll.length ? `<div class="dlall">${saveReady ? `<button class="btn primary" data-saveready>💾 Simpan ${saveReady.length} foto ke Galeri</button>` : `<button class="btn primary" data-dlall="*" ${left ? '' : 'disabled'}>⬇ Download semua (${left} belum)</button>`}
+    <span class="muted">${driveAll.length - left} sudah diunduh di HP ini</span>${driveAll.length - left ? '<button class="btn" data-dlreset>Reset tanda</button>' : ''}</div>` : '';
+  $('main').innerHTML = bar + keys.map(k => {
     const g = groups[k]; const fUrl = g[0].folderUrl;
+    const gl = g.filter(r => r.src === 'drive' && !gotDl(r.id)).length;
     return `<div class="day"><h3>${esc(k)}${k === todayName ? ' · hari ini' : ''}</h3><span class="cnt">${g.length} poster</span>
-      ${fUrl ? `<a class="btn drive" href="${esc(fUrl)}" target="_blank" rel="noopener">Buka folder Drive ↗</a>` : ''}</div>
+      ${gl ? `<button class="btn" data-dlall="${esc(k)}">⬇ ${gl}</button>` : ''}
+      ${fUrl ? `<a class="btn drive" href="${esc(fUrl)}" target="_blank" rel="noopener">Drive ↗</a>` : ''}</div>
       <div class="gal">${g.map(r => `
-        <div class="gcard">
+        <div class="gcard ${r.src === 'drive' && gotDl(r.id) ? 'got' : ''}">
           <div class="img"><img src="${r.src === 'drive' ? BLANK : esc(r.file)}" ${r.src === 'drive' ? `data-drive-id="${esc(r.id)}"` : ''} data-zoom alt="${esc(r.code)}"></div>
           <div class="foot"><b>${esc(r.code)}</b>
-            ${r.src === 'drive' ? `<a class="btn drive" href="${esc(r.url)}" target="_blank" rel="noopener">Drive ↗</a>` : `<a class="btn" href="${esc(r.file)}" download>Unduh</a>`}
+            ${r.src === 'drive' ? `<span style="display:flex;gap:4px"><button class="icbtn ${gotDl(r.id) ? 'got' : ''}" data-dlone="${esc(r.id)}" data-code="${esc(r.code)}" title="Download">${DL_ICON}</button><a class="btn drive" href="${esc(r.url)}" target="_blank" rel="noopener">Drive ↗</a></span>` : `<a class="btn" href="${esc(r.file)}" download>Unduh</a>`}
           </div>
         </div>`).join('')}</div>`;
   }).join('') + (rootUrl ? `<div class="day"><a class="btn drive" style="margin-left:0" href="${esc(rootUrl)}" target="_blank" rel="noopener">Buka folder utama "Foto Avatar Roblox" ↗</a></div>` : '');
@@ -498,6 +526,63 @@ async function combinedBlob(o) {
   let px = gap;
   imgs.forEach((im, i) => { x.fillText(labels[i], px, top / 2 + 6); x.drawImage(im, px, top, ws[i], H); px += ws[i] + gap; });
   return new Promise(r => c.toBlob(r, 'image/png'));
+}
+// ---- Download semua (lewati yang sudah pernah diunduh di perangkat ini) ----
+const DL_KEY = 'ornakuy_dl_done';
+let dlDone; try { dlDone = new Set(JSON.parse(localStorage.getItem(DL_KEY) || '[]')); } catch (e) { dlDone = new Set(); }
+function gotDl(id) { return dlDone.has(id); }
+function markDl(ids) { ids.forEach(i => dlDone.add(i)); try { localStorage.setItem(DL_KEY, JSON.stringify([...dlDone])); } catch (e) {} }
+let saveReady = null; // [{id, file}] siap disimpan ke galeri (HP)
+async function fetchPoster(r) {
+  const j = await drive({ action:'image', id:r.id });
+  const blob = await (await fetch(`data:${j.mime};base64,${j.data}`)).blob();
+  const ext = (blob.type.split('/')[1] || 'png').replace('jpeg', 'jpg');
+  return new File([blob], `${r.code}.${ext}`, { type: blob.type || 'image/png' });
+}
+const canShareFiles = () => { try { return !!(navigator.canShare && navigator.canShare({ files: [new File([new Blob(['x'], { type:'image/png' })], 'a.png', { type:'image/png' })] })); } catch (e) { return false; } };
+async function downloadMany(items) {
+  if (!items.length) { toast('Semua sudah pernah diunduh ✓'); return; }
+  const files = [];
+  for (let i = 0; i < items.length; i++) {
+    toast(`Menyiapkan ${i + 1}/${items.length}…`, 60000);
+    try { files.push({ id: items[i].id, file: await fetchPoster(items[i]) }); } catch (e) { toast('Gagal ambil ' + items[i].code, 2500); }
+  }
+  if (!files.length) return;
+  if (canShareFiles()) { // HP: simpan langsung ke Galeri lewat menu Bagikan
+    saveReady = files; toast(`${files.length} foto siap — tekan "Simpan ke Galeri"`, 4000); render(); return;
+  }
+  for (const f of files) { download(f.file, f.file.name); await new Promise(r => setTimeout(r, 450)); }
+  markDl(files.map(f => f.id)); toast(`✓ ${files.length} foto diunduh`, 3000); render();
+}
+async function onResultsClick(e) {
+  const sr = e.target.closest('[data-saveready]');
+  if (sr) {
+    const files = saveReady; saveReady = null;
+    try { await navigator.share({ files: files.map(f => f.file) }); markDl(files.map(f => f.id)); toast(`✓ ${files.length} foto disimpan`, 3000); }
+    catch (err) { if (err.name !== 'AbortError') { for (const f of files) { download(f.file, f.file.name); await new Promise(r => setTimeout(r, 450)); } markDl(files.map(f => f.id)); } else toast('Dibatalkan'); }
+    render(); return true;
+  }
+  const da = e.target.closest('[data-dlall]');
+  if (da) {
+    const q = $('q').value.trim().toUpperCase();
+    const all = driveFiles.filter(r => (!q || r.code.includes(q)) && (da.dataset.dlall === '*' || r.folder === da.dataset.dlall));
+    await downloadMany(all.filter(r => !gotDl(r.id))); return true;
+  }
+  const one = e.target.closest('[data-dlone]');
+  if (one) {
+    const r = { id: one.dataset.dlone, code: one.dataset.code };
+    try {
+      const f = await fetchPoster(r);
+      if (canShareFiles()) { saveReady = [{ id: r.id, file: f }]; render(); toast('Tekan "Simpan ke Galeri"', 3000); }
+      else { download(f, f.name); markDl([r.id]); render(); }
+    } catch (err) { toast('Download gagal: ' + err.message, 4000); }
+    return true;
+  }
+  if (e.target.closest('[data-dlreset]')) {
+    if (confirm('Hapus tanda "sudah diunduh" di HP ini? (pakai kalau foto di galeri sudah kamu hapus)')) { dlDone.clear(); markDl([]); render(); }
+    return true;
+  }
+  return false;
 }
 function download(blob, name) {
   const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name; a.click();
@@ -612,6 +697,7 @@ $('pull').onclick = async () => {
 // ---- Event ----
 $('main').addEventListener('click', async e => {
   if (tab === 'post' && !e.target.closest('.vcard') && await onPostClick(e)) return;
+  if (tab === 'results' && await onResultsClick(e)) return;
   const vc = e.target.closest('.vcard');
   if (vc && !e.target.closest('a')) { openVideo(vc.dataset.vid); return; }
   if (e.target.matches('img[data-zoom]')) { const zc = e.target.closest('.card,.gcard'); const zcode = (zc && zc.querySelector('.code, .foot b') || {}).textContent || 'gambar'; zoomMeta = { id: e.target.dataset.driveId || null, name: zcode + (e.target.alt && e.target.alt !== zcode ? '_' + e.target.alt : '') }; $('zoomImg').src = e.target.src; $('zoom').style.display = 'flex'; const id = e.target.dataset.driveId; if (id) drive({ action:'image', id }).then(j => { $('zoomImg').src = `data:${j.mime};base64,${j.data}`; }).catch(() => {}); }
