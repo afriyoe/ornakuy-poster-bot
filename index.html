@@ -303,7 +303,7 @@ function render() {
   const tmr = (videoGroups || []).find(g => { const d = parseFolderDate(g.folder); return d && dayDiff(d) === 1; });
   $('nVid').textContent = tmr ? tmr.files.length : 0;
   const hints = {
-    new: 'Klik 🎬 Kirim ke Google Flow → 3 foto terunduh & prompt tersalin → di Flow upload 3 foto (urut 1-2-3), Ctrl+V prompt, generate → upload hasilnya di kartu (Langkah 2).',
+    new: 'Klik 🚀 Kirim ke ChatGPT → di ChatGPT tekan Ctrl+V lalu Enter → setelah jadi, upload hasilnya di kartu (Langkah 2).',
     seen: 'Foto mentah dan kode yang sudah pernah di-generate. Hasilnya ada di tab Hasil generate.',
     results: 'Semua hasil generate, dikelompokkan per folder tanggal di Google Drive.',
     videos: 'Video konten tim per folder tanggal tayang (angka di tab = video untuk besok). Klik video untuk preview.',
@@ -315,8 +315,7 @@ function render() {
   if (tab === 'results') { renderResults(results.filter(r => match(r.code))); return hydrateDrive(); }
   const list = (tab === 'new' ? newList : seenList).filter(o => match(o.code));
   if (!list.length) { $('main').innerHTML = `<div class="empty">${tab === 'new' ? 'Tidak ada pesanan baru. Tekan ⬇ Tarik dari Discord untuk cek.' : 'Belum ada.'}</div>`; return; }
-  const bar = tab === 'new' ? `<div class="dlall"><button class="btn primary" data-genall ${genBusy ? 'disabled' : ''}>${genBusy ? '⏳ ' + esc(genBusy) : `✨ Generate otomatis semua (${list.length})`}</button><span class="muted">pakai Gemini · hasil langsung masuk Drive & tab Hasil generate</span></div>` : '';
-  $('main').innerHTML = bar + `<div class="grid">${list.map(orderCard).join('')}</div>`;
+  $('main').innerHTML = `<div class="grid">${list.map(orderCard).join('')}</div>`;
 }
 
 function orderCard(o) {
@@ -338,15 +337,14 @@ function orderCard(o) {
       ${r ? `<div class="ph res"><img src="${esc(resImg)}" loading="lazy" data-zoom alt="hasil" referrerpolicy="no-referrer"><span>Hasil</span></div>` : ''}
     </div>
     <div class="steps one">
-      <button class="btn primary big" data-act="flow"><small>Langkah 1 · gratis</small>🎬 Kirim ke Google Flow</button>
+      <button class="btn primary big" data-act="send"><small>Langkah 1</small>🚀 Kirim ke ChatGPT</button>
     </div>
-    <div class="mini"><button data-act="auto">✨ Otomatis (Gemini API)</button><button data-act="send">🚀 ChatGPT</button><button data-act="fprompt">Salin prompt Flow</button></div>
-    
+    <div class="mini"><button data-act="photo">Salin foto saja</button><button data-act="prompt">Salin prompt saja</button><button data-act="gpt">Buka ChatGPT</button></div>
     ${r ? `<div class="result">
         ${r.src === 'drive' ? `<a class="btn drive" href="${esc(r.url)}" target="_blank" rel="noopener">Buka di Drive ↗</a>` : `<a class="btn" href="${esc(r.file)}" target="_blank" rel="noopener">Lihat hasil lama ↗</a>`}
         <button class="btn" data-act="upload">Upload hasil baru</button>
       </div>`
-      : `<div class="drop" data-act="upload"><b>Langkah 2</b> · Upload hasil Flow/ChatGPT ke Drive<br><span style="font-size:12px">klik, seret gambar ke sini, atau klik kartu lalu Ctrl+V</span></div>`}
+      : `<div class="drop" data-act="upload"><b>Langkah 2</b> · Upload hasil ChatGPT ke Drive<br><span style="font-size:12px">klik, seret gambar ke sini, atau klik kartu lalu Ctrl+V</span></div>`}
   </div>`;
 }
 
@@ -596,67 +594,6 @@ const POSES = [
   'Right hand in the pants pocket, left arm hanging relaxed at the side.',
   'One hand in the pants pocket, the other hand lightly holding the hoodie string or the belt.'
 ];
-// ---- Generate otomatis (Gemini / Nano Banana via Apps Script) ----
-const GEMINI_PROMPT = `You will receive 3 images:
-- Image 1 = STYLE REFERENCE: the finished poster look I want (background, lighting, title, layout, camera).
-- Image 2 = FRONT and Image 3 = BACK screenshot of my Roblox avatar outfit (the product I sell).
-
-TASK: Re-render the EXACT avatar from Image 2 and Image 3 into a poster that looks like Image 1, in high definition.
-
-THE OUTFIT IS THE PRODUCT - COPY IT 1:1, DO NOT REDESIGN:
-- Keep the exact same 3D Roblox avatar: same body proportions, head shape and Roblox style. Do not turn it into a realistic human, anime or a different character.
-- Keep every clothing piece exactly as in the photos: same shape, silhouette, length, volume, layers, folds, ruffles, cut-outs, straps, belts, accessories, hair, hat/hood and shoes.
-- Keep the exact same colors, shades, prints, patterns, logos, textures and skin tone. Do not add, remove, simplify, recolor or "improve" anything.
-- Keep the same standing pose as in the photos (arms may rest naturally) so the clothing shape stays identical.
-- If the face is covered by clothing (hood, mask, helmet), keep it covered - never reveal or invent a face.
-- Only fix hair that visibly clips through a hood/hat; otherwise do not touch the hair.
-- Ignore the Roblox grey baseplate, sky, shadows and on-screen joystick/buttons in Image 2 and 3.
-
-COPY FROM IMAGE 1 ONLY THE STYLE:
-- Same light grey studio background with liquid silver chrome swirls and the glossy reflective dark floor, same lighting and colors.
-- Same layout: FRONT view on the left, BACK view on the right, large full-body figures standing on the reflective floor, same scale and spacing.
-- Same title at the top center in the same font, size, weight and black color: a four-point star, the word "CODE", the code, a four-point star. The code is "{CODE}" - spell it exactly: {SPELLED}. No other text anywhere.
-- Camera: slightly low angle (knee height, looking slightly up), premium streetwear lookbook shot.
-- Never copy the outfit, hair or character from Image 1.
-
-QUALITY: vertical 2:3, high resolution, ultra sharp and clean, crisp fabric textures and edges, high-end 3D render quality, soft studio lighting with realistic reflections. Upgrade only the render quality - not the design.`;
-let genBusy = '';
-async function jpegB64(src, max = 1536) {
-  const im = await loadImg(src);
-  const k = Math.min(1, max / Math.max(im.naturalWidth, im.naturalHeight));
-  const c = document.createElement('canvas'); c.width = Math.round(im.naturalWidth * k); c.height = Math.round(im.naturalHeight * k);
-  const x = c.getContext('2d'); x.fillStyle = '#fff'; x.fillRect(0, 0, c.width, c.height); x.drawImage(im, 0, 0, c.width, c.height);
-  return { mime: 'image/jpeg', data: c.toDataURL('image/jpeg', 0.9).split(',')[1] };
-}
-const gemPrompt = code => GEMINI_PROMPT.replaceAll('{CODE}', code).replaceAll('{SPELLED}', code.split('').join('-'));
-async function sendFlow(o) {
-  try { await navigator.clipboard.writeText(gemPrompt(o.code)); } catch (e) {}
-  window.open('https://flow.google.com/', 'ornakuy_flow');
-  toast('Prompt tersalin. Mengunduh 3 foto…', 4000);
-  const files = [['reference.jpg', '1_style_reference.jpg'], [raw(o.front), o.code + '_2_depan.png'], [raw(o.back), o.code + '_3_belakang.png']];
-  for (const [u, n] of files) {
-    try { const b = await (await fetch(u)).blob(); download(b, n); await new Promise(r => setTimeout(r, 450)); }
-    catch (e) { toast('Gagal unduh ' + n, 3000); }
-  }
-  toast('Di Flow: upload 3 foto (urut 1-2-3), tempel prompt (Ctrl+V), generate. Lalu upload hasilnya di Langkah 2.', 9000);
-}
-async function autoGen(o) {
-  const prompt = gemPrompt(o.code);
-
-  const images = [await jpegB64('reference.jpg'), await jpegB64(raw(o.front)), await jpegB64(raw(o.back))];
-  return drive({ action: 'generate', code: o.code, prompt, images });
-}
-async function runGen(list) {
-  if (genBusy) { toast('Masih generate, tunggu ya'); return; }
-  let ok = 0;
-  for (let i = 0; i < list.length; i++) {
-    genBusy = `Generate ${i + 1}/${list.length} · ${list[i].code}…`; toast(genBusy, 120000); if (tab === 'new') render();
-    try { await autoGen(list[i]); ok++; }
-    catch (e) { toast(`Gagal ${list[i].code}: ${e.message}`, 6000); await new Promise(r => setTimeout(r, 2500)); }
-  }
-  genBusy = ''; await loadAll();
-  toast(ok ? `✓ ${ok} poster jadi — cek tab Hasil generate` : 'Tidak ada yang berhasil', 5000);
-}
 const promptFor = code => {
   const pose = POSES[Math.floor(Math.random() * POSES.length)];
   let p = cfg().prompt;
@@ -684,9 +621,6 @@ async function act(kind, o) {
     toast('Foto tersalin & prompt sudah terisi. Di ChatGPT: tekan Ctrl+V lalu Enter', 6000);
     return;
   }
-  if (kind === 'auto') { runGen([o]); return; }
-  if (kind === 'flow') { sendFlow(o); return; }
-  if (kind === 'fprompt') { try { await navigator.clipboard.writeText(gemPrompt(o.code)); toast('Prompt Flow ' + o.code + ' tersalin'); } catch (e) { toast('Gagal menyalin'); } return; }
   if (kind === 'photo') {
     try {
       const blob = await getBlob(o);
@@ -764,7 +698,6 @@ $('pull').onclick = async () => {
 $('main').addEventListener('click', async e => {
   if (tab === 'post' && !e.target.closest('.vcard') && await onPostClick(e)) return;
   if (tab === 'results' && await onResultsClick(e)) return;
-  if (e.target.closest('[data-genall]')) { const q = $('q').value.trim().toUpperCase(); runGen(orders.filter(o => !resultFor(o.code) && (!q || o.code.includes(q)))); return; }
   const vc = e.target.closest('.vcard');
   if (vc && !e.target.closest('a')) { openVideo(vc.dataset.vid); return; }
   if (e.target.matches('img[data-zoom]')) { const zc = e.target.closest('.card,.gcard'); const zcode = (zc && zc.querySelector('.code, .foot b') || {}).textContent || 'gambar'; zoomMeta = { id: e.target.dataset.driveId || null, name: zcode + (e.target.alt && e.target.alt !== zcode ? '_' + e.target.alt : '') }; $('zoomImg').src = e.target.src; $('zoom').style.display = 'flex'; const id = e.target.dataset.driveId; if (id) drive({ action:'image', id }).then(j => { $('zoomImg').src = `data:${j.mime};base64,${j.data}`; }).catch(() => {}); }
