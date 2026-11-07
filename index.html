@@ -57,6 +57,7 @@
   .drop { margin:10px 16px 16px; border:1.5px dashed #3a3a44; border-radius:12px; padding:13px; text-align:center; font-size:13px; color:var(--muted); cursor:pointer; transition:.15s; }
   .drop:hover, .drop.over { border-color:var(--chrome); color:var(--text); background:#1c1c22; }
   .drop.busy { color:var(--warn); }
+  .drop .pastebtn { margin-top:9px; padding:7px 14px; font-size:12.5px; }
   .result { display:flex; gap:8px; align-items:center; margin:10px 16px 16px; flex-wrap:wrap; }
   .result .btn { flex:1; }
   .day { margin:26px 0 12px; display:flex; align-items:center; gap:12px; }
@@ -344,7 +345,7 @@ function orderCard(o) {
         ${r.src === 'drive' ? `<a class="btn drive" href="${esc(r.url)}" target="_blank" rel="noopener">Buka di Drive ↗</a>` : `<a class="btn" href="${esc(r.file)}" target="_blank" rel="noopener">Lihat hasil lama ↗</a>`}
         <button class="btn" data-act="upload">Upload hasil baru</button>
       </div>`
-      : `<div class="drop" data-act="upload"><b>Langkah 2</b> · Upload hasil ChatGPT ke Drive<br><span style="font-size:12px">klik, seret gambar ke sini, atau klik kartu lalu Ctrl+V</span></div>`}
+      : `<div class="drop" data-act="upload"><b>Langkah 2</b> · Upload hasil ChatGPT ke Drive<br><span style="font-size:12px">klik untuk pilih file, seret gambar ke sini, atau salin gambar di ChatGPT lalu Ctrl+V / Cmd+V di kartu ini</span><br><button class="btn pastebtn" data-act="paste">📋 Tempel dari clipboard</button></div>`}
   </div>`;
 }
 
@@ -621,6 +622,13 @@ async function act(kind, o) {
     toast('Foto tersalin & prompt sudah terisi. Di ChatGPT: tekan Ctrl+V lalu Enter', 6000);
     return;
   }
+  if (kind === 'paste') {
+    try {
+      const f = await imageFromClipboardApi();
+      if (f) upload(o, f); else toast('Tidak ada gambar di clipboard. Di ChatGPT klik kanan gambar → "Salin gambar", lalu coba lagi.', 6000);
+    } catch (err) { toast(err.name === 'NotAllowedError' ? 'Izinkan akses clipboard di browser, lalu coba lagi' : err.message, 5000); }
+    return;
+  }
   if (kind === 'photo') {
     try {
       const blob = await getBlob(o);
@@ -642,6 +650,35 @@ async function act(kind, o) {
   }
 }
 
+// ---- Tempel gambar dari clipboard (hasil "Salin gambar" di ChatGPT) ----
+async function blobFromSrc(src) {
+  const r = await fetch(src); const b = await r.blob();
+  if (!b.type.startsWith('image/')) throw new Error('bukan gambar');
+  return new File([b], 'hasil.' + ((b.type.split('/')[1] || 'png').replace('jpeg', 'jpg')), { type: b.type });
+}
+async function imageFromPasteEvent(e) {
+  const dt = e.clipboardData; if (!dt) return null;
+  for (const it of [...(dt.items || [])]) { if (it.kind === 'file' && it.type.startsWith('image/')) { const f = it.getAsFile(); if (f) return f; } }
+  const f = [...(dt.files || [])].find(x => x.type.startsWith('image/')); if (f) return f;
+  const html = dt.getData('text/html') || '';
+  const m = html.match(/<img[^>]+src=["']([^"']+)["']/i);
+  if (m) { try { return await blobFromSrc(m[1]); } catch (err) {} }
+  return null;
+}
+async function imageFromClipboardApi() {
+  if (!navigator.clipboard || !navigator.clipboard.read) throw new Error('Browser ini tidak mendukung tombol tempel — pakai Ctrl+V / Cmd+V');
+  const items = await navigator.clipboard.read();
+  for (const it of items) {
+    const t = it.types.find(x => x.startsWith('image/'));
+    if (t) { const b = await it.getType(t); return new File([b], 'hasil.' + (t.split('/')[1] || 'png').replace('jpeg', 'jpg'), { type: t }); }
+    if (it.types.includes('text/html')) {
+      const html = await (await it.getType('text/html')).text();
+      const m = html.match(/<img[^>]+src=["']([^"']+)["']/i);
+      if (m) { try { return await blobFromSrc(m[1]); } catch (err) {} }
+    }
+  }
+  return null;
+}
 async function upload(o, file) {
   if (!file || !file.type.startsWith('image/')) { toast('Itu bukan gambar'); return; }
   const c = cfg();
@@ -707,8 +744,10 @@ $('main').addEventListener('click', async e => {
   document.querySelectorAll('.card.active').forEach(c => c.classList.remove('active')); cardEl.classList.add('active');
   const b = e.target.closest('[data-act]'); if (b) act(b.dataset.act, o);
 });
+let hoverId = null;
 $('main').addEventListener('mouseover', e => {
   const c = e.target.closest('.card'); if (!c) return;
+  hoverId = c.dataset.id;
   const o = orders.find(x => x.message_id === c.dataset.id);
   if (o && !resultFor(o.code)) getBlob(o).catch(() => {});
 });
@@ -719,10 +758,16 @@ $('main').addEventListener('drop', e => {
   const o = orders.find(x => x.message_id === d.closest('.card').dataset.id);
   upload(o, e.dataTransfer.files[0]);
 });
-document.addEventListener('paste', e => {
-  if (!activeId || e.target.closest('dialog')) return;
-  const f = [...(e.clipboardData?.files || [])].find(f => f.type.startsWith('image/'));
-  if (f) { e.preventDefault(); upload(orders.find(x => x.message_id === activeId), f); }
+document.addEventListener('paste', async e => {
+  const tg = e.target instanceof Element ? e.target : document.body;
+  if (tg.closest('dialog') || tg.matches('input, textarea, [contenteditable]')) return;
+  const id = activeId || hoverId;
+  const o = id && orders.find(x => x.message_id === id);
+  e.preventDefault();
+  const f = await imageFromPasteEvent(e);
+  if (!f) { toast('Clipboard tidak berisi gambar. Di ChatGPT klik kanan gambar → "Salin gambar".', 5000); return; }
+  if (!o) { toast('Klik dulu kartu pesanannya, lalu tempel lagi', 4000); return; }
+  upload(o, f);
 });
 $('zoom').onclick = e => { if (e.target.id === 'zoom' || e.target.closest('#zclose')) $('zoom').style.display = 'none'; };
 $('zdl').onclick = async e => {
