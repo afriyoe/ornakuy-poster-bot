@@ -223,7 +223,8 @@ LOCKED FROM PANEL B/C (do not change):
 - Never take the outfit, hair, skin or character from Panel A - Panel A is only for style and layout.
 
 SPECIAL RULES:
-- If the face is covered by the clothing (hood, mask, helmet, etc.), that is the design of the outfit. Keep it covered. Do NOT generate or reveal a face.
+- FACE: copy the avatar's face exactly as in Panel B (same eyes, eye color, eyebrows, mouth, makeup/face decals, skin tone), clearly visible and not hidden by the hair. Never leave the face blank and never replace it with a different face.
+- Only if the face in Panel B is truly covered by clothing (mask, helmet, closed hood) keep it covered exactly like that - do not reveal or invent a face under it.
 - If the avatar wears a hood, hoodie, hat or beanie and the hair visibly clips through it in the photo, fix only that: keep the hair inside / under the hood so nothing pokes through.
 - If the hair does NOT clip through, do not regenerate, restyle or "improve" the hair or the hood at all - keep their shapes exactly as in the photo.
 - Do not add the panel labels or white borders to the poster.`;
@@ -515,17 +516,76 @@ function renderResults(list) {
 function loadImg(src) {
   return new Promise((res, rej) => { const i = new Image(); i.crossOrigin = 'anonymous'; i.onload = () => res(i); i.onerror = rej; i.src = src; });
 }
+// ---- Auto-crop screenshot Roblox ke avatar (latar langit + lantai abu-abu) ----
+function avatarBox(img) {
+  const SW = 200, SH = Math.round(img.naturalHeight * SW / img.naturalWidth);
+  const c = document.createElement('canvas'); c.width = SW; c.height = SH;
+  const x = c.getContext('2d', { willReadFrequently: true }); x.imageSmoothingQuality = 'high'; x.drawImage(img, 0, 0, SW, SH);
+  const d = x.getImageData(0, 0, SW, SH).data;
+  const mask = new Uint8Array(SW * SH);
+  const sideCols = []; for (let i = Math.floor(SW * .12); i < Math.floor(SW * .28); i++) sideCols.push(i); for (let i = Math.floor(SW * .72); i < Math.floor(SW * .9); i++) sideCols.push(i);
+  const med = a => { a.sort((p, q) => p - q); return a[a.length >> 1]; };
+  for (let y = Math.floor(SH * .12); y < Math.floor(SH * .97); y++) { // abaikan bar status / tombol menu di atas
+    const R = [], G = [], B = [];
+    for (const i of sideCols) { const k = (y * SW + i) * 4; R.push(d[k]); G.push(d[k + 1]); B.push(d[k + 2]); }
+    const br = med(R.slice()), bg = med(G.slice()), bb = med(B.slice());
+    const nz = sideCols.map((i, n) => Math.max(Math.abs(R[n] - br), Math.abs(G[n] - bg), Math.abs(B[n] - bb))).sort((p, q) => p - q);
+    const thr = Math.max(40, nz[Math.floor(nz.length * .95)] * 1.8);
+    for (let i = Math.floor(SW * .12); i < Math.floor(SW * .9); i++) {
+      const k = (y * SW + i) * 4;
+      if (Math.max(Math.abs(d[k] - br), Math.abs(d[k + 1] - bg), Math.abs(d[k + 2] - bb)) > thr) mask[y * SW + i] = 1;
+    }
+  }
+  // gabungkan bagian yang berdekatan (dilasi 2px)
+  const m2 = new Uint8Array(SW * SH);
+  for (let y = 0; y < SH; y++) for (let i = 0; i < SW; i++) if (mask[y * SW + i]) for (let dy = -2; dy <= 2; dy++) for (let dx = -2; dx <= 2; dx++) { const yy = y + dy, xx = i + dx; if (yy >= 0 && yy < SH && xx >= 0 && xx < SW) m2[yy * SW + xx] = 1; }
+  const seen = new Uint8Array(SW * SH); let box = null; const cx0 = SW * .35, cx1 = SW * .65;
+  for (let s0 = 0; s0 < SW * SH; s0++) {
+    if (!m2[s0] || seen[s0]) continue;
+    const st = [s0]; seen[s0] = 1; let n = 0, x0 = SW, x1 = 0, y0 = SH, y1 = 0;
+    while (st.length) { const p = st.pop(); n++; const py = (p / SW) | 0, pxx = p % SW; if (pxx < x0) x0 = pxx; if (pxx > x1) x1 = pxx; if (py < y0) y0 = py; if (py > y1) y1 = py;
+      for (const q of [p - 1, p + 1, p - SW, p + SW]) if (q >= 0 && q < SW * SH && m2[q] && !seen[q] && Math.abs((q % SW) - pxx) <= 1) { seen[q] = 1; st.push(q); } }
+    if (n < SW * SH * 0.002 || x1 < cx0 || x0 > cx1) continue;
+    box = box ? [Math.min(box[0], x0), Math.min(box[1], y0), Math.max(box[2], x1), Math.max(box[3], y1)] : [x0, y0, x1, y1];
+  }
+  const k = img.naturalWidth / SW;
+  if (!box || (box[3] - box[1]) < SH * 0.08 || (box[2] - box[0]) > SW * 0.75) return null;
+  return box.map(v => v * k);
+}
+function cropAvatar(img, aspect = 0.62) {
+  const W = img.naturalWidth, H = img.naturalHeight;
+  let b; try { b = avatarBox(img); } catch (e) { b = null; }
+  if (!b) return img;
+  const bw = b[2] - b[0], bh = b[3] - b[1];
+  const top = b[1] - bh * 0.10, bot = b[3] + bh * 0.06;
+  const half = Math.max(W / 2 - b[0], b[2] - W / 2);
+  let ch = bot - top, cw = Math.max(ch * aspect, half * 2 * 1.1); ch = cw / aspect;
+  const cx = W / 2, cy = (top + bot) / 2; // avatar Roblox selalu di tengah layar (bayangan tidak ikut menggeser)
+  if (ch > H) { ch = H; cw = ch * aspect; } if (cw > W) { cw = W; ch = cw / aspect; }
+  const L = Math.min(Math.max(cx - cw / 2, 0), W - cw), T = Math.min(Math.max(cy - ch / 2, 0), H - ch);
+  const c = document.createElement('canvas'); c.width = Math.round(cw); c.height = Math.round(ch);
+  c.getContext('2d').drawImage(img, L, T, cw, ch, 0, 0, c.width, c.height);
+  c.naturalWidth = c.width; c.naturalHeight = c.height; return c;
+}
 async function combinedBlob(o) {
   const imgs = await Promise.all([loadImg('reference.jpg'), loadImg(raw(o.front)), loadImg(raw(o.back))]);
+  imgs[1] = cropAvatar(imgs[1]); imgs[2] = cropAvatar(imgs[2]);
+  const pose = POSES[Math.floor(Math.random() * POSES.length)];
   const labels = ['A  STYLE REFERENCE', 'B  FRONT', 'C  BACK'];
-  const H = 1200, gap = 24, top = 70;
+  const H = 1200, gap = 24, bar = 150, top = bar + 70;
   const ws = imgs.map(i => Math.round(i.naturalWidth * H / i.naturalHeight));
   const c = document.createElement('canvas');
   c.width = ws.reduce((p, q) => p + q, 0) + gap * 4; c.height = H + top + gap;
   const x = c.getContext('2d'); x.fillStyle = '#fff'; x.fillRect(0, 0, c.width, c.height);
-  x.fillStyle = '#111'; x.font = 'bold 40px Arial, sans-serif'; x.textBaseline = 'middle';
+  // bar CODE + POSE (dibaca oleh instruksi Project ChatGPT)
+  x.fillStyle = '#111'; x.fillRect(0, 0, c.width, bar);
+  x.textBaseline = 'middle'; x.fillStyle = '#fff'; x.font = '900 84px "Arial Black", Arial, sans-serif';
+  x.fillText('CODE: ' + o.code, gap, 58);
+  x.fillStyle = '#ffd84d'; x.font = 'bold 32px Arial, sans-serif';
+  x.fillText('POSE: ' + pose.replace(/\.$/, ''), gap, 122);
+  x.fillStyle = '#111'; x.font = 'bold 40px Arial, sans-serif';
   let px = gap;
-  imgs.forEach((im, i) => { x.fillText(labels[i], px, top / 2 + 6); x.drawImage(im, px, top, ws[i], H); px += ws[i] + gap; });
+  imgs.forEach((im, i) => { x.fillText(labels[i], px, bar + 35 + 6); x.drawImage(im, px, top, ws[i], H); px += ws[i] + gap; });
   return new Promise(r => c.toBlob(r, 'image/png'));
 }
 // ---- Download semua (lewati yang sudah pernah diunduh di perangkat ini) ----
@@ -610,7 +670,8 @@ function openGpt(url) {
 }
 const blobCache = {};
 function getBlob(o) { return blobCache[o.message_id] || (blobCache[o.message_id] = combinedBlob(o).catch(e => { delete blobCache[o.message_id]; throw e; })); }
-function gptUrl(o) { const base = cfg().gpt; return base + (base.includes('?') ? '&' : '?') + 'prompt=' + encodeURIComponent(promptFor(o.code)); }
+const isProject = u => /\/g\/g-p-|\/project/.test(u || '');
+function gptUrl(o) { const base = cfg().gpt; if (isProject(base)) return base; return base + (base.includes('?') ? '&' : '?') + 'prompt=' + encodeURIComponent(promptFor(o.code)); }
 
 async function act(kind, o) {
   if (kind === 'send') {
@@ -619,7 +680,7 @@ async function act(kind, o) {
       await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]);
     } catch (e) { toast('Gagal menyalin foto — coba tombol "Salin foto saja"', 4000); return; }
     openGpt(gptUrl(o));
-    toast('Foto tersalin & prompt sudah terisi. Di ChatGPT: tekan Ctrl+V lalu Enter', 6000);
+    toast(isProject(cfg().gpt) ? 'Foto tersalin. Di ChatGPT (Project): tekan Ctrl+V / Cmd+V lalu Enter' : 'Foto tersalin & prompt sudah terisi. Di ChatGPT: tekan Ctrl+V lalu Enter', 6000);
     return;
   }
   if (kind === 'paste') {
