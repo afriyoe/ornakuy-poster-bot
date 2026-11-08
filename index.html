@@ -417,19 +417,33 @@ function vidBtn(g) {
   return left ? `<button class="btn primary" data-dlvids="${esc(g.folder)}">⬇ Download ${left} video</button>`
               : `<button class="btn" data-dlvids="${esc(g.folder)}">✓ Sudah diunduh · ulang (${vids.length})</button>`;
 }
-async function fetchDriveFile(f, label) {
-  const CH = 6 * 1024 * 1024; // 6 MB per permintaan (aman untuk batas Apps Script)
-  const parts = []; let start = 0, total = Infinity, mime = f.mime;
-  while (start < total) {
-    const j = await drive({ action:'chunk', id:f.id, start, size:CH });
-    total = j.total; mime = j.mime || mime;
-    const bin = atob(j.data); const u = new Uint8Array(bin.length);
-    for (let i = 0; i < bin.length; i++) u[i] = bin.charCodeAt(i);
-    if (!u.length) break;
-    parts.push(u); start += u.length;
-    toast(`${label} · ${Math.min(100, Math.round(start / total * 100))}%`, 60000);
-  }
-  return new File(parts, f.name, { type: mime || 'video/mp4' });
+// Ambil beberapa video sekaligus: dipotong per 6 MB, 4 potongan diambil bersamaan (≈4x lebih cepat)
+async function fetchVideos(list) {
+  const CH = 6 * 1024 * 1024, POOL = 4;
+  const vs = list.map(f => ({ ...f }));
+  for (const f of vs) if (!f.size) { const j = await drive({ action:'chunk', id:f.id, start:0, size:1 }); f.size = j.total; }
+  const tasks = []; vs.forEach((f, vi) => { for (let s = 0; s < f.size; s += CH) tasks.push({ vi, f, s }); });
+  const parts = vs.map(() => []); const all = vs.reduce((a, f) => a + f.size, 0) || 1;
+  let got = 0, next = 0;
+  const one = async t => {
+    for (let k = 0; ; k++) {
+      try { return await drive({ action:'chunk', id:t.f.id, start:t.s, size:CH }); }
+      catch (e) { if (k >= 2 || /chunk|aksi/i.test(e.message)) throw e; await new Promise(r => setTimeout(r, 1500)); }
+    }
+  };
+  const worker = async () => {
+    while (next < tasks.length) {
+      const t = tasks[next++];
+      const j = await one(t);
+      const bin = atob(j.data); const u = new Uint8Array(bin.length);
+      for (let i = 0; i < bin.length; i++) u[i] = bin.charCodeAt(i);
+      parts[t.vi][t.s / CH] = u; if (j.mime) t.f.mime = j.mime;
+      got += u.length;
+      toast(`Mengambil ${vs.length} video · ${Math.min(100, Math.round(got / all * 100))}%`, 60000);
+    }
+  };
+  await Promise.all(Array.from({ length: Math.min(POOL, tasks.length) }, worker));
+  return vs.map((f, vi) => ({ id: f.id, file: new File(parts[vi], f.name, { type: f.mime || 'video/mp4' }) }));
 }
 async function downloadFolder(folder, onlyId) {
   const g = (videoGroups || []).find(x => x.folder === folder);
@@ -439,9 +453,10 @@ async function downloadFolder(folder, onlyId) {
     let todo = onlyId ? vids : vids.filter(f => !gotDl(f.id));
     if (!todo.length) todo = vids; // semua sudah pernah diunduh → unduh ulang
     vidReady = null; vidBusy = folder; render();
-    const files = [];
+    let files = [];
     try {
-      for (let i = 0; i < todo.length; i++) files.push({ id: todo[i].id, file: await fetchDriveFile(todo[i], `Mengambil video ${i + 1}/${todo.length}`) });
+      toast(`Mengambil ${todo.length} video…`, 60000);
+      files = await fetchVideos(todo);
     } catch (e) {
       toast(/chunk|action|aksi/i.test(e.message) ? 'Apps Script belum diperbarui (aksi "chunk"). Lihat petunjuk update.' : 'Gagal ambil video: ' + e.message, 6000);
     }
