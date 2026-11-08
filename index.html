@@ -65,6 +65,7 @@
   .day h3 { margin:0; font-size:16px; }
   .day .cnt { color:var(--muted); font-size:13px; }
   .day .btn { margin-left:auto; padding:7px 12px; }
+  .day .btn + .btn { margin-left:0; }
   .gal { display:grid; grid-template-columns:repeat(auto-fill,minmax(200px,1fr)); gap:14px; }
   .gcard { background:var(--card); border:1px solid var(--line); border-radius:14px; overflow:hidden; }
   .gcard .img { aspect-ratio:2/3; background:#222; display:flex; align-items:center; justify-content:center; color:var(--muted); font-size:12px; }
@@ -391,13 +392,27 @@ function renderVideos() {
     const vids = g.files.filter(f => f.mime.startsWith('video/')).length;
     return `<div class="day ${n === 1 ? 'tomorrow' : ''}"><h3>${esc(g.folder)}${g.d ? ` · <span class="when">${dayLabel(g.d)}</span>` : ''}</h3>
       <span class="cnt ${vids < 3 ? 'low' : ''}">${vids}/3 video</span>
-      <a class="btn drive" href="${esc(g.folderUrl)}" target="_blank" rel="noopener">Buka folder ↗</a></div>
+      ${g.files.length ? `<button class="btn" data-dlvids="${esc(g.folder)}">⬇ Download video (${g.files.length})</button>` : ''}<a class="btn drive" href="${esc(g.folderUrl)}" target="_blank" rel="noopener">Buka folder ↗</a></div>
       <div class="gal">${g.files.map(f => `
         <div class="gcard vcard" data-vid="${esc(f.id)}" data-mime="${esc(f.mime)}">
           <div class="img vid"><img src="${BLANK}" data-drive-id="${esc(f.id)}" alt="">${f.mime.startsWith('video/') ? '<span class="play">▶</span>' : ''}</div>
           <div class="foot"><span class="vname" title="${esc(f.name)}">${esc(f.name)}</span><a class="btn drive" href="${esc(f.url)}" target="_blank" rel="noopener">Drive ↗</a></div>
         </div>`).join('') || '<div class="empty" style="padding:8px 0;text-align:left">Belum ada video di folder ini.</div>'}</div>`;
   }).join('');
+}
+// Download semua file di satu folder tanggal (3 video, atau berapa pun isinya)
+async function downloadFolder(folder) {
+  const g = (videoGroups || []).find(x => x.folder === folder);
+  if (!g || !g.files.length) { toast('Folder ini kosong'); return; }
+  toast(`Mengunduh ${g.files.length} file dari ${folder}… (kalau Chrome bertanya, pilih "Izinkan" download beberapa file)`, 7000);
+  for (const f of g.files) {
+    const fr = document.createElement('iframe');
+    fr.style.display = 'none';
+    fr.src = `https://drive.google.com/uc?export=download&id=${encodeURIComponent(f.id)}`;
+    document.body.appendChild(fr);
+    setTimeout(() => fr.remove(), 120000);
+    await new Promise(r => setTimeout(r, 1500));
+  }
 }
 function openVideo(id) {
   $('vframe').src = `https://drive.google.com/file/d/${encodeURIComponent(id)}/preview`;
@@ -796,6 +811,7 @@ $('pull').onclick = async () => {
 $('main').addEventListener('click', async e => {
   if (tab === 'post' && !e.target.closest('.vcard') && await onPostClick(e)) return;
   if (tab === 'results' && await onResultsClick(e)) return;
+  const dv = e.target.closest('[data-dlvids]'); if (dv) { downloadFolder(dv.dataset.dlvids); return; }
   const vc = e.target.closest('.vcard');
   if (vc && !e.target.closest('a')) { openVideo(vc.dataset.vid); return; }
   if (e.target.matches('img[data-zoom]')) { const zc = e.target.closest('.card,.gcard'); const zcode = (zc && zc.querySelector('.code, .foot b') || {}).textContent || 'gambar'; zoomMeta = { id: e.target.dataset.driveId || null, name: zcode + (e.target.alt && e.target.alt !== zcode ? '_' + e.target.alt : '') }; $('zoomImg').src = e.target.src; $('zoom').style.display = 'flex'; const id = e.target.dataset.driveId; if (id) drive({ action:'image', id }).then(j => { $('zoomImg').src = `data:${j.mime};base64,${j.data}`; }).catch(() => {}); }
