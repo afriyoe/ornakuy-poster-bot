@@ -662,7 +662,8 @@ function cropAvatar(img, aspect = 0.62) {
 }
 async function combinedBlob(o) {
   const imgs = await Promise.all([loadImg('reference.jpg'), loadImg(raw(o.front)), loadImg(raw(o.back))]);
-  imgs[1] = cropAvatar(imgs[1]); imgs[2] = cropAvatar(imgs[2]);
+  // Auto-crop dimatikan: foto depan/belakang sudah di-crop manual oleh tim. Aktifkan lagi dengan menghapus tanda // di baris bawah.
+  // imgs[1] = cropAvatar(imgs[1]); imgs[2] = cropAvatar(imgs[2]);
   const pose = POSES[Math.floor(Math.random() * POSES.length)];
   const labels = ['A  STYLE REFERENCE', 'B  FRONT', 'C  BACK'];
   const H = 1200, gap = 24, bar = 150, top = bar + 70;
