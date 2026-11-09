@@ -610,17 +610,19 @@ function avatarBox(img) {
   const x = c.getContext('2d', { willReadFrequently: true }); x.imageSmoothingQuality = 'high'; x.drawImage(img, 0, 0, SW, SH);
   const d = x.getImageData(0, 0, SW, SH).data;
   const mask = new Uint8Array(SW * SH);
-  const sideCols = []; for (let i = Math.floor(SW * .12); i < Math.floor(SW * .28); i++) sideCols.push(i); for (let i = Math.floor(SW * .72); i < Math.floor(SW * .9); i++) sideCols.push(i);
-  const med = a => { a.sort((p, q) => p - q); return a[a.length >> 1]; };
+  // Contoh warna latar diambil dari tepi paling luar (2–10% & 90–98%), supaya kain/rambut yang menjuntai
+  // ke samping tidak ikut dianggap latar. Piksel = avatar kalau warnanya jauh dari SEMUA contoh latar di baris itu
+  // (tahan terhadap tekstur lantai: bata terang & celah gelap sama-sama ada di contoh).
+  const bgCols = []; for (let i = Math.floor(SW * .02); i < Math.floor(SW * .10); i++) bgCols.push(i); for (let i = Math.floor(SW * .90); i < Math.floor(SW * .98); i++) bgCols.push(i);
+  const THR = 48;
   for (let y = Math.floor(SH * .12); y < Math.floor(SH * .97); y++) { // abaikan bar status / tombol menu di atas
-    const R = [], G = [], B = [];
-    for (const i of sideCols) { const k = (y * SW + i) * 4; R.push(d[k]); G.push(d[k + 1]); B.push(d[k + 2]); }
-    const br = med(R.slice()), bg = med(G.slice()), bb = med(B.slice());
-    const nz = sideCols.map((i, n) => Math.max(Math.abs(R[n] - br), Math.abs(G[n] - bg), Math.abs(B[n] - bb))).sort((p, q) => p - q);
-    const thr = Math.max(40, nz[Math.floor(nz.length * .95)] * 1.8);
-    for (let i = Math.floor(SW * .12); i < Math.floor(SW * .9); i++) {
-      const k = (y * SW + i) * 4;
-      if (Math.max(Math.abs(d[k] - br), Math.abs(d[k + 1] - bg), Math.abs(d[k + 2] - bb)) > thr) mask[y * SW + i] = 1;
+    const S = [];
+    for (let yy = Math.max(0, y - 3); yy <= Math.min(SH - 1, y + 3); yy += 3) for (const i of bgCols) { const k = (yy * SW + i) * 4; S.push(d[k], d[k + 1], d[k + 2]); }
+    for (let i = Math.floor(SW * .10); i < Math.floor(SW * .9); i++) {
+      const k = (y * SW + i) * 4, r = d[k], g = d[k + 1], bl = d[k + 2];
+      let near = false;
+      for (let s = 0; s < S.length; s += 3) { if (Math.abs(r - S[s]) <= THR && Math.abs(g - S[s + 1]) <= THR && Math.abs(bl - S[s + 2]) <= THR) { near = true; break; } }
+      if (!near) mask[y * SW + i] = 1;
     }
   }
   // gabungkan bagian yang berdekatan (dilasi 2px)
@@ -644,11 +646,15 @@ function cropAvatar(img, aspect = 0.62) {
   let b; try { b = avatarBox(img); } catch (e) { b = null; }
   if (!b) return img;
   const bw = b[2] - b[0], bh = b[3] - b[1];
-  const top = b[1] - bh * 0.10, bot = b[3] + bh * 0.06;
+  const fullPhone = H / W > 1.7; // screenshot HP penuh: ada tombol "Exit Freecam" di atas — jangan ikut ter-crop
+  const top = fullPhone ? Math.max(b[1] - bh * 0.10, Math.min(b[1] - bh * 0.02, H * 0.09)) : b[1] - bh * 0.10, bot = b[3] + bh * 0.06;
   const half = Math.max(W / 2 - b[0], b[2] - W / 2);
-  let ch = bot - top, cw = Math.max(ch * aspect, half * 2 * 1.1); ch = cw / aspect;
+  // Tinggi crop = tinggi avatar + margin; lebar mengikuti rasio. Kalau lebar foto tidak cukup,
+  // crop dibuat lebih ramping — JANGAN memotong tinggi avatar (dulu kepala/kaki bisa terpotong).
+  let ch = Math.min(bot - top, H), cw = Math.max(ch * aspect, half * 2 * 1.1);
+  if (cw > W) cw = W;
+  ch = Math.min(H, Math.max(ch, cw / aspect));
   const cx = W / 2, cy = (top + bot) / 2; // avatar Roblox selalu di tengah layar (bayangan tidak ikut menggeser)
-  if (ch > H) { ch = H; cw = ch * aspect; } if (cw > W) { cw = W; ch = cw / aspect; }
   const L = Math.min(Math.max(cx - cw / 2, 0), W - cw), T = Math.min(Math.max(cy - ch / 2, 0), H - ch);
   const c = document.createElement('canvas'); c.width = Math.round(cw); c.height = Math.round(ch);
   c.getContext('2d').drawImage(img, L, T, cw, ch, 0, 0, c.width, c.height);
